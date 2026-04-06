@@ -107,7 +107,7 @@
 				{#if paymentMethod === 'cash'}
 					<!-- Landscape-only: change preview + actions -->
 					<div class="hidden landscape:flex flex-col gap-1 flex-1 min-h-0">
-						{#if numpadValue && parsedAmount > 0}
+						{#if numpadValue && parsedAmount !== 0}
 							<div class="shrink-0 text-center rounded-lg p-1 {changePreview >= 0 ? 'bg-success/10' : 'bg-danger/10'}">
 								<p class="text-xs {changePreview >= 0 ? 'text-success' : 'text-danger'}">
 									{changePreview >= 0 ? 'Rückgeld' : 'Fehlbetrag'}
@@ -123,7 +123,10 @@
 									<button
 										type="button"
 										class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-9 py-1 text-xs font-semibold transition-colors"
-										onclick={() => { numpadValue = String(amount).replace('.', ','); }}
+										onclick={() => {
+											const amountValue = String(amount).replace('.', ',');
+											numpadValue = numpadValue.startsWith('-') ? `-${amountValue}` : amountValue;
+										}}
 									>
 										{amount}€
 									</button>
@@ -148,7 +151,7 @@
 								<button
 									type="button"
 									class="bg-success hover:bg-success/80 text-white rounded-lg min-h-9 py-1 text-sm font-semibold transition-colors disabled:opacity-40"
-									disabled={!numpadValue || parsedAmount <= 0}
+									disabled={!numpadValue || parsedAmount === 0}
 									onclick={() => handleConfirm(parsedAmount)}
 								>
 									Bestätigen
@@ -162,7 +165,7 @@
 			<!-- Main content -->
 			{#if paymentMethod === 'cash'}
 				<!-- Portrait: change preview -->
-				{#if numpadValue && parsedAmount > 0}
+				{#if numpadValue && parsedAmount !== 0}
 					<div class="shrink-0 text-center rounded-lg p-1.5 sm:p-2.5 landscape:hidden {changePreview >= 0 ? 'bg-success/10' : 'bg-danger/10'}">
 						<p class="text-xs sm:text-sm {changePreview >= 0 ? 'text-success' : 'text-danger'}">
 							{changePreview >= 0 ? 'Rückgeld' : 'Fehlbetrag'}

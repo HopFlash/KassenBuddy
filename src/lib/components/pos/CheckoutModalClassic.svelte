@@ -104,7 +104,7 @@
 
 			{#if paymentMethod === 'cash'}
 				<!-- Change preview -->
-				{#if numpadValue && parsedAmount > 0}
+				{#if numpadValue && parsedAmount !== 0}
 					<div class="shrink-0 text-center rounded-xl p-2.5 sm:p-3 {changePreview >= 0 ? 'bg-success/10' : 'bg-danger/10'}">
 						<p class="text-sm {changePreview >= 0 ? 'text-success' : 'text-danger'}">
 							{changePreview >= 0 ? 'Rückgeld' : 'Fehlbetrag'}

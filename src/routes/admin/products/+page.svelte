@@ -93,7 +93,7 @@
 
 	async function handleSave() {
 		const price = parseFloat(formPrice.replace(',', '.'));
-		if (!formName.trim() || isNaN(price) || price < 0) return;
+		if (!formName.trim() || isNaN(price)) return;
 		const parsedPurchase = parseFloat(formPurchasePrice.replace(',', '.'));
 		const purchasePrice = formPurchasePrice.trim() && !isNaN(parsedPurchase) && parsedPurchase >= 0
 			? Math.round(parsedPurchase * 100) / 100
@@ -228,9 +228,10 @@
 					inputmode="decimal"
 					class="w-full bg-surface-lighter rounded-lg px-4 py-3 text-text outline-none focus:ring-2 focus:ring-accent"
 					bind:value={formPrice}
-					placeholder="2,50"
+					placeholder="2,50 oder -0,25"
 					required
 				/>
+				<p class="text-xs text-text-muted mt-1">Negative Werte sind erlaubt (z. B. Pfandrückgabe).</p>
 			</div>
 			<div>
 				<label for="purchase-price" class="block text-sm text-text-muted mb-1">Einkaufspreis (€) <span class="text-xs opacity-60">optional</span></label>
