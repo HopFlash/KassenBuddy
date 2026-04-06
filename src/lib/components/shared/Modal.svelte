@@ -22,8 +22,8 @@
 	>
 		<div class="bg-surface-light rounded-2xl shadow-2xl {wide ? 'w-[92vw] max-w-4xl max-h-[92dvh] overflow-auto' : fit ? 'w-[min(96vw,44rem)] h-[min(96dvh,52rem)] flex flex-col overflow-hidden' : 'w-[92vw] max-w-md max-h-[92dvh] overflow-auto'}">
 			{#if title}
-				<div class="flex items-center justify-between border-b border-surface-lighter {fit ? 'px-4 py-3 sm:px-5 sm:py-3.5' : 'px-6 py-4'} shrink-0">
-					<h2 class="{fit ? 'text-lg sm:text-xl' : 'text-xl'} font-bold">{title}</h2>
+				<div class="flex items-center justify-between border-b border-surface-lighter {fit ? 'px-4 py-2 sm:px-5 sm:py-3' : 'px-6 py-4'} shrink-0">
+					<h2 class="{fit ? 'text-base sm:text-xl' : 'text-xl'} font-bold">{title}</h2>
 					<button
 						type="button"
 						class="text-text-muted hover:text-text text-2xl leading-none"

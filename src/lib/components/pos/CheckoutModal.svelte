@@ -77,25 +77,25 @@
 			</button>
 		</div>
 	{:else}
-		<div class="flex flex-col h-full min-h-0 gap-2.5 sm:gap-3">
+		<div class="flex flex-col h-full min-h-0 gap-1.5 sm:gap-2.5">
 			<!-- Amount -->
 			<div class="text-center shrink-0">
-				<p class="text-text-muted text-sm">Zu zahlen</p>
-				<p class="text-2xl sm:text-3xl font-bold text-accent">{formatCurrency(cart.total)}</p>
+				<p class="text-text-muted text-xs sm:text-sm leading-tight">Zu zahlen</p>
+				<p class="text-xl sm:text-3xl font-bold text-accent leading-tight">{formatCurrency(cart.total)}</p>
 			</div>
 
 			<!-- Payment method toggle -->
-			<div class="grid grid-cols-2 gap-2 shrink-0">
+			<div class="grid grid-cols-2 gap-1.5 sm:gap-2 shrink-0">
 				<button
 					type="button"
-					class="rounded-xl min-h-11 py-2.5 font-semibold transition-colors border-2 {paymentMethod === 'cash' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
+					class="rounded-xl min-h-9 sm:min-h-11 py-1.5 sm:py-2.5 text-sm sm:text-base font-semibold transition-colors border-2 {paymentMethod === 'cash' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
 					onclick={() => { paymentMethod = 'cash'; numpadValue = ''; }}
 				>
 					💵 Bargeld
 				</button>
 				<button
 					type="button"
-					class="rounded-xl min-h-11 py-2.5 font-semibold transition-colors border-2 {paymentMethod === 'card' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
+					class="rounded-xl min-h-9 sm:min-h-11 py-1.5 sm:py-2.5 text-sm sm:text-base font-semibold transition-colors border-2 {paymentMethod === 'card' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
 					onclick={() => { paymentMethod = 'card'; numpadValue = ''; }}
 				>
 					💳 Karte
@@ -105,11 +105,11 @@
 			{#if paymentMethod === 'cash'}
 				<!-- Change preview -->
 				{#if numpadValue && parsedAmount > 0}
-					<div class="shrink-0 text-center rounded-xl p-2.5 sm:p-3 {changePreview >= 0 ? 'bg-success/10' : 'bg-danger/10'}">
-						<p class="text-sm {changePreview >= 0 ? 'text-success' : 'text-danger'}">
+					<div class="shrink-0 text-center rounded-lg p-1.5 sm:p-2.5 {changePreview >= 0 ? 'bg-success/10' : 'bg-danger/10'}">
+						<p class="text-xs sm:text-sm {changePreview >= 0 ? 'text-success' : 'text-danger'}">
 							{changePreview >= 0 ? 'Rückgeld' : 'Fehlbetrag'}
 						</p>
-						<p class="text-xl sm:text-2xl font-bold {changePreview >= 0 ? 'text-success' : 'text-danger'}">
+						<p class="text-lg sm:text-xl font-bold {changePreview >= 0 ? 'text-success' : 'text-danger'}">
 							{formatCurrency(Math.abs(changePreview))}
 						</p>
 					</div>
@@ -126,7 +126,7 @@
 
 				<button
 					type="button"
-					class="w-full shrink-0 min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-2.5 text-sm font-semibold transition-colors"
+					class="w-full shrink-0 min-h-9 sm:min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-1.5 sm:py-2.5 text-sm font-semibold transition-colors"
 					onclick={() => handleConfirm(cart.total)}
 					disabled={processing}
 				>
