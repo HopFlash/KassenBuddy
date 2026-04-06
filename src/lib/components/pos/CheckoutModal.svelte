@@ -77,35 +77,93 @@
 			</button>
 		</div>
 	{:else}
-		<div class="flex flex-col h-full min-h-0 gap-1.5 sm:gap-2.5">
-			<!-- Amount -->
-			<div class="text-center shrink-0">
-				<p class="text-text-muted text-xs sm:text-sm leading-tight">Zu zahlen</p>
-				<p class="text-xl sm:text-3xl font-bold text-accent leading-tight">{formatCurrency(cart.total)}</p>
+		<div class="flex flex-col h-full min-h-0 gap-1.5 sm:gap-2.5 {paymentMethod === 'cash' ? 'landscape:flex-row landscape:gap-3' : ''}">
+			<!-- Info panel: top in portrait, left side in landscape (cash) -->
+			<div class="flex flex-col gap-1.5 {paymentMethod === 'cash' ? 'landscape:w-[40%] landscape:shrink-0 landscape:min-h-0' : ''}">
+				<!-- Amount -->
+				<div class="text-center shrink-0 {paymentMethod === 'cash' ? 'landscape:text-left' : ''}">
+					<p class="text-text-muted text-xs sm:text-sm leading-tight">Zu zahlen</p>
+					<p class="text-xl sm:text-3xl font-bold text-accent leading-tight {paymentMethod === 'cash' ? 'landscape:text-2xl' : ''}">{formatCurrency(cart.total)}</p>
+				</div>
+
+				<!-- Payment method toggle -->
+				<div class="grid grid-cols-2 gap-1.5 sm:gap-2 shrink-0">
+					<button
+						type="button"
+						class="rounded-xl min-h-9 sm:min-h-11 py-1.5 sm:py-2.5 text-sm sm:text-base font-semibold transition-colors border-2 {paymentMethod === 'cash' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
+						onclick={() => { paymentMethod = 'cash'; numpadValue = ''; }}
+					>
+						💵 Bargeld
+					</button>
+					<button
+						type="button"
+						class="rounded-xl min-h-9 sm:min-h-11 py-1.5 sm:py-2.5 text-sm sm:text-base font-semibold transition-colors border-2 {paymentMethod === 'card' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
+						onclick={() => { paymentMethod = 'card'; numpadValue = ''; }}
+					>
+						💳 Karte
+					</button>
+				</div>
+
+				{#if paymentMethod === 'cash'}
+					<!-- Landscape-only: change preview + actions -->
+					<div class="hidden landscape:flex flex-col gap-1 flex-1 min-h-0">
+						{#if numpadValue && parsedAmount > 0}
+							<div class="shrink-0 text-center rounded-lg p-1 {changePreview >= 0 ? 'bg-success/10' : 'bg-danger/10'}">
+								<p class="text-xs {changePreview >= 0 ? 'text-success' : 'text-danger'}">
+									{changePreview >= 0 ? 'Rückgeld' : 'Fehlbetrag'}
+								</p>
+								<p class="text-base font-bold {changePreview >= 0 ? 'text-success' : 'text-danger'}">
+									{formatCurrency(Math.abs(changePreview))}
+								</p>
+							</div>
+						{/if}
+						<div class="mt-auto flex flex-col gap-1">
+							<div class="grid grid-cols-4 gap-1">
+								{#each [5, 10, 20, 50] as amount}
+									<button
+										type="button"
+										class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-9 py-1 text-xs font-semibold transition-colors"
+										onclick={() => { numpadValue = String(amount).replace('.', ','); }}
+									>
+										{amount}€
+									</button>
+								{/each}
+							</div>
+							<button
+								type="button"
+								class="w-full min-h-9 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-1 text-sm font-semibold transition-colors"
+								onclick={() => handleConfirm(cart.total)}
+								disabled={processing}
+							>
+								Passend ({formatCurrency(cart.total)})
+							</button>
+							<div class="grid grid-cols-2 gap-1">
+								<button
+									type="button"
+									class="bg-surface-lighter hover:bg-danger/30 text-danger rounded-lg min-h-9 py-1 text-sm font-semibold transition-colors"
+									onclick={handleClose}
+								>
+									Abbrechen
+								</button>
+								<button
+									type="button"
+									class="bg-success hover:bg-success/80 text-white rounded-lg min-h-9 py-1 text-sm font-semibold transition-colors disabled:opacity-40"
+									disabled={!numpadValue || parsedAmount <= 0}
+									onclick={() => handleConfirm(parsedAmount)}
+								>
+									Bestätigen
+								</button>
+							</div>
+						</div>
+					</div>
+				{/if}
 			</div>
 
-			<!-- Payment method toggle -->
-			<div class="grid grid-cols-2 gap-1.5 sm:gap-2 shrink-0">
-				<button
-					type="button"
-					class="rounded-xl min-h-9 sm:min-h-11 py-1.5 sm:py-2.5 text-sm sm:text-base font-semibold transition-colors border-2 {paymentMethod === 'cash' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
-					onclick={() => { paymentMethod = 'cash'; numpadValue = ''; }}
-				>
-					💵 Bargeld
-				</button>
-				<button
-					type="button"
-					class="rounded-xl min-h-9 sm:min-h-11 py-1.5 sm:py-2.5 text-sm sm:text-base font-semibold transition-colors border-2 {paymentMethod === 'card' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
-					onclick={() => { paymentMethod = 'card'; numpadValue = ''; }}
-				>
-					💳 Karte
-				</button>
-			</div>
-
+			<!-- Main content -->
 			{#if paymentMethod === 'cash'}
-				<!-- Change preview -->
+				<!-- Portrait: change preview -->
 				{#if numpadValue && parsedAmount > 0}
-					<div class="shrink-0 text-center rounded-lg p-1.5 sm:p-2.5 {changePreview >= 0 ? 'bg-success/10' : 'bg-danger/10'}">
+					<div class="shrink-0 text-center rounded-lg p-1.5 sm:p-2.5 landscape:hidden {changePreview >= 0 ? 'bg-success/10' : 'bg-danger/10'}">
 						<p class="text-xs sm:text-sm {changePreview >= 0 ? 'text-success' : 'text-danger'}">
 							{changePreview >= 0 ? 'Rückgeld' : 'Fehlbetrag'}
 						</p>
@@ -124,9 +182,10 @@
 					/>
 				</div>
 
+				<!-- Portrait: passend button -->
 				<button
 					type="button"
-					class="w-full shrink-0 min-h-9 sm:min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-1.5 sm:py-2.5 text-sm font-semibold transition-colors"
+					class="w-full shrink-0 min-h-9 sm:min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-1.5 sm:py-2.5 text-sm font-semibold transition-colors landscape:hidden"
 					onclick={() => handleConfirm(cart.total)}
 					disabled={processing}
 				>

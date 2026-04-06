@@ -7,12 +7,14 @@
 	import ProductGrid from '$lib/components/pos/ProductGrid.svelte';
 	import Cart from '$lib/components/pos/Cart.svelte';
 	import CheckoutModal from '$lib/components/pos/CheckoutModal.svelte';
+	import CheckoutModalClassic from '$lib/components/pos/CheckoutModalClassic.svelte';
 	import Calculator from '$lib/components/shared/Calculator.svelte';
 
 	let products = $state<Product[]>([]);
 	let checkoutOpen = $state(false);
 	let calculatorOpen = $state(false);
 	let drinkQuotaCounter = $state(0);
+	let checkoutLayout = $state<'classic' | 'compact'>('compact');
 
 	const quotaCounterClass = $derived.by(() => {
 		if (drinkQuotaCounter <= 0) return 'bg-danger/20 text-danger';
@@ -24,6 +26,7 @@
 		const [activeProducts, settings] = await Promise.all([getActiveProducts(), getSettings()]);
 		products = activeProducts;
 		drinkQuotaCounter = settings.drinkQuotaCounter;
+		checkoutLayout = settings.checkoutLayout;
 	});
 
 	function handleSelect(product: Product) {
@@ -35,6 +38,7 @@
 		Promise.all([getActiveProducts(), getSettings()]).then(([p, settings]) => {
 			products = p;
 			drinkQuotaCounter = settings.drinkQuotaCounter;
+			checkoutLayout = settings.checkoutLayout;
 		});
 	}
 </script>
@@ -74,11 +78,19 @@
 	</div>
 </div>
 
+{#if checkoutLayout === 'classic'}
+<CheckoutModalClassic
+	bind:open={checkoutOpen}
+	onclose={() => (checkoutOpen = false)}
+	oncomplete={handleCheckoutComplete}
+/>
+{:else}
 <CheckoutModal
 	bind:open={checkoutOpen}
 	onclose={() => (checkoutOpen = false)}
 	oncomplete={handleCheckoutComplete}
 />
+{/if}
 
 <Calculator
 	bind:open={calculatorOpen}

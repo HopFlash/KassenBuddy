@@ -32,7 +32,8 @@ function normalizeSettings(settings: Partial<Settings> | null | undefined): Sett
 		quickDiscountPercents: normalizeQuickDiscountPercents(merged.quickDiscountPercents),
 		drinkQuotaCounter: Number.isFinite(Number(merged.drinkQuotaCounter))
 			? Math.trunc(Number(merged.drinkQuotaCounter))
-			: DEFAULT_SETTINGS.drinkQuotaCounter
+			: DEFAULT_SETTINGS.drinkQuotaCounter,
+		checkoutLayout: merged.checkoutLayout === 'classic' ? 'classic' : 'compact'
 	};
 }
 

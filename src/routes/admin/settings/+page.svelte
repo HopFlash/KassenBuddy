@@ -9,7 +9,8 @@
 		currency: 'EUR',
 		shopName: 'KassenBuddy',
 		quickDiscountPercents: [5, 10, 20],
-		drinkQuotaCounter: 0
+		drinkQuotaCounter: 0,
+		checkoutLayout: 'compact'
 	});
 	let discountInputs = $state(['5', '10', '20']);
 	let quotaCounterInput = $state('0');
@@ -189,6 +190,27 @@
 					bind:value={settings.shopName}
 				/>
 				<p class="text-xs text-text-muted mt-1">Wird im Excel-Export als Titel verwendet</p>
+			</div>
+
+			<div>
+				<p class="block text-sm text-text-muted mb-1">Bezahl-Dialog Layout</p>
+				<div class="grid grid-cols-2 gap-2">
+					<button
+						type="button"
+						class="rounded-xl py-3 font-semibold transition-colors border-2 text-sm {settings.checkoutLayout === 'compact' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
+						onclick={() => { settings.checkoutLayout = 'compact'; }}
+					>
+						📱 Kompakt
+					</button>
+					<button
+						type="button"
+						class="rounded-xl py-3 font-semibold transition-colors border-2 text-sm {settings.checkoutLayout === 'classic' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
+						onclick={() => { settings.checkoutLayout = 'classic'; }}
+					>
+						🖥️ Klassisch
+					</button>
+				</div>
+				<p class="text-xs text-text-muted mt-1">Kompakt: optimiert für kleine Bildschirme & Querformat. Klassisch: größere Tasten, Original-Layout.</p>
 			</div>
 			<button
 				type="button"

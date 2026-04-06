@@ -40,6 +40,7 @@ export interface Settings {
 	shopName: string;
 	quickDiscountPercents: [number, number, number];
 	drinkQuotaCounter: number;
+	checkoutLayout: 'classic' | 'compact';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -47,7 +48,8 @@ export const DEFAULT_SETTINGS: Settings = {
 	currency: 'EUR',
 	shopName: 'KassenBuddy',
 	quickDiscountPercents: [5, 10, 20],
-	drinkQuotaCounter: 0
+	drinkQuotaCounter: 0,
+	checkoutLayout: 'compact'
 };
 
 export const CATEGORIES = [
