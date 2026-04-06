@@ -1,0 +1,49 @@
+﻿{
+  "version": 1,
+  "exportedAt": 0,
+  "settings": {
+    "adminPin": "7391",
+    "currency": "EUR",
+    "shopName": "KassenBuddy",
+    "quickDiscountPercents": [5, 10, 20],
+    "drinkQuotaCounter": 0
+  },
+  "products": [
+    {
+      "id": "demo-cola",
+      "name": "Cola",
+      "price": 2.5,
+      "purchasePrice": 1.0,
+      "category": "Softdrinks",
+      "active": true,
+      "sortOrder": 0,
+      "createdAt": 0,
+      "stock": null,
+      "imageDataUrl": null
+    },
+    {
+      "id": "demo-water",
+      "name": "Wasser",
+      "price": 2.0,
+      "purchasePrice": 0.6,
+      "category": "Wasser",
+      "active": true,
+      "sortOrder": 1,
+      "createdAt": 0,
+      "stock": null,
+      "imageDataUrl": null
+    },
+    {
+      "id": "demo-chips",
+      "name": "Chips",
+      "price": 2.2,
+      "purchasePrice": 0.9,
+      "category": "Snacks",
+      "active": true,
+      "sortOrder": 2,
+      "createdAt": 0,
+      "stock": null,
+      "imageDataUrl": null
+    }
+  ]
+}
