@@ -67,11 +67,11 @@
 		</button>
 	</div>
 
-	<div class="flex-1 min-h-0 grid grid-cols-3 gap-2 mt-2">
+	<div class="flex-1 min-h-0 grid grid-cols-3 gap-2 mt-2 rounded-lg border border-surface-lighter p-1.5">
 		{#each buttons as btn}
 			<button
 				type="button"
-				class="bg-surface-light hover:bg-surface-lighter active:bg-accent rounded-lg h-full min-h-[2.8rem] text-lg sm:text-xl font-semibold transition-colors"
+				class="bg-surface-light border border-surface-lighter hover:bg-surface-lighter active:bg-accent rounded-lg h-full min-h-[2.8rem] text-lg sm:text-xl font-semibold transition-colors"
 				style="min-height: clamp(2.8rem, 7.2vh, 4.2rem);"
 				onclick={() => press(btn)}
 			>

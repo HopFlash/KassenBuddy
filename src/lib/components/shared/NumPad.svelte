@@ -67,11 +67,11 @@
 		</button>
 	</div>
 
-	<div class="flex-1 min-h-0 grid grid-cols-3 grid-rows-4 gap-1.5 sm:gap-2 landscape:gap-1 mt-1 landscape:mt-0">
+	<div class="flex-1 min-h-0 grid grid-cols-3 grid-rows-4 gap-1.5 sm:gap-2 landscape:gap-1 mt-1 landscape:mt-0 rounded-lg border border-surface-lighter p-1 sm:p-1.5">
 		{#each buttons as btn}
 			<button
 				type="button"
-				class="bg-surface-light hover:bg-surface-lighter active:bg-accent rounded-lg min-h-10 sm:min-h-12 text-lg sm:text-xl font-semibold transition-colors"
+				class="bg-surface-light border border-surface-lighter hover:bg-surface-lighter active:bg-accent rounded-lg min-h-10 sm:min-h-12 text-lg sm:text-xl font-semibold transition-colors"
 				onclick={() => press(btn)}
 			>
 				{btn}
