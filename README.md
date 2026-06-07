@@ -60,8 +60,8 @@ KassenBuddy ist ein **offline-fähiges Kassensystem** als Progressive Web App (P
 
 ### Voraussetzungen
 
-- [Node.js](https://nodejs.org/) ≥ 18
-- [pnpm](https://pnpm.io/) (empfohlen) oder npm
+- [Node.js](https://nodejs.org/) ≥ 24
+- [pnpm](https://pnpm.io/) ≥ 11 (empfohlen) oder npm
 
 ### Installation & Entwicklungsserver starten
 
@@ -94,18 +94,34 @@ pnpm preview
 
 Der fertige Build liegt im Ordner `build/` und kann auf jedem statischen Webserver oder lokal geöffnet werden.
 
+### Workspace-Management
+
+Dieses Projekt nutzt **pnpm Workspaces** (definiert in `pnpm-workspace.yaml`). Das ermöglicht flexible Erweiterungen für zukünftige Mono-Repo-Strukturen.
+
 ---
 
 ## 📦 Deployment
 
 Da KassenBuddy als statische PWA gebaut wird (`adapter-static`), kann der `build/`-Ordner auf beliebigen Hosting-Diensten bereitgestellt werden, z. B.:
 
-- GitHub Pages
+- **GitHub Pages** (automatisch via GitHub Actions)
 - Netlify / Vercel
 - Nginx / Apache
 - Direkt als lokale Datei im Browser öffnen
 
 Die App funktioniert nach dem ersten Laden vollständig **offline** dank Service Worker und IndexedDB.
+
+### GitHub Actions & CI/CD
+
+Das Projekt nutzt **GitHub Actions** für automatisches Deployment auf GitHub Pages:
+
+- **Node.js 24**: Aktuelle LTS-Version für maximale Performance und Sicherheit
+- **pnpm 11**: Sicherer und schneller Package Manager mit Workspace-Support
+- **Automatisches Build & Deployment**: Bei jedem Push auf `main`
+
+**Requirements für lokale Sicherheit:**
+- pnpm 11 erlaubt standardmäßig keine Build-Skripte extern (security-first approach)
+- Der Workflow genehmigt explizit `esbuild` für Vite-Builds
 
 ---
 
