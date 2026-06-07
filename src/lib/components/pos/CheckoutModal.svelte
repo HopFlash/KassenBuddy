@@ -122,7 +122,7 @@
 								{#each [5, 10, 20, 50] as amount}
 									<button
 										type="button"
-										class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-9 py-1 text-xs font-semibold transition-colors"
+										class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-16 py-3.0 text-m font-semibold transition-colors"
 										onclick={() => {
 											const amountValue = String(amount).replace('.', ',');
 											numpadValue = numpadValue.startsWith('-') ? `-${amountValue}` : amountValue;
@@ -134,7 +134,7 @@
 							</div>
 							<button
 								type="button"
-								class="w-full min-h-9 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-1 text-sm font-semibold transition-colors"
+								class="w-full min-h-16 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-3.0 text-m font-semibold transition-colors"
 								onclick={() => handleConfirm(cart.total)}
 								disabled={processing}
 							>

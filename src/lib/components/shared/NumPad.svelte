@@ -84,7 +84,7 @@
 		{#each [5, 10, 20, 50] as amount}
 			<button
 				type="button"
-				class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-9 sm:min-h-11 py-1.5 sm:py-2 text-sm font-semibold transition-colors"
+				class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-12 sm:min-h-14 py-2.5 sm:py-3 text-sm font-semibold transition-colors"
 				onclick={() => {
 					const amountValue = String(amount).replace('.', ',');
 					value = value.startsWith('-') ? `-${amountValue}` : amountValue;

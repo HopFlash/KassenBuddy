@@ -4,9 +4,10 @@
 
 	interface Props {
 		transactions: Transaction[];
+		title?: string;
 	}
 
-	let { transactions }: Props = $props();
+	let { transactions, title = 'Umsatz pro Stunde — heute' }: Props = $props();
 
 	const currentHour = new Date().getHours();
 
@@ -119,7 +120,7 @@
 </script>
 
 <div class="bg-surface-light rounded-xl p-4">
-	<h2 class="font-bold mb-3">Umsatz pro Stunde — heute</h2>
+	<h2 class="font-bold mb-3">{title}</h2>
 
 	<div class="relative">
 		<!-- HTML Tooltip: absolutely positioned over the SVG, always fully visible -->
