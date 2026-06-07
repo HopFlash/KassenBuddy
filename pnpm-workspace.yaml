@@ -1,0 +1,15 @@
+packages:
+  - '.'
+
+settings:
+  autoInstallPeers: true
+  nodeLinker: hoisted
+
+catalogs:
+  default:
+    svelte: ^5.55.9
+    typescript: ^6.0.3
+    vite: ^8.0.14
+
+onlyBuiltDependencies:
+  - esbuild
