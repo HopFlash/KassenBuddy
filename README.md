@@ -21,10 +21,11 @@ KassenBuddy ist ein **offline-fähiges Kassensystem** als Progressive Web App (P
 - **Dashboard** mit Tages- und Gesamtumsatz, Transaktionsanzahl, aktivem Produktbestand und stündlichem Umsatz-Diagramm
 - **Produktverwaltung** – Produkte anlegen, bearbeiten und löschen mit:
   - Name, Verkaufspreis und optionalem Einkaufspreis
-  - Kategorie (Bier, Wein, Spirituosen, Softdrinks, Wasser, Cocktails, Snacks, Sonstiges)
+  - Frei verwaltbaren Kategorien (inkl. Anlegen/Umbenennen/Löschen)
   - Produktbild (Upload, Zuschnitt)
   - Sortierreihenfolge und Aktiv/Inaktiv-Status
   - Optionale Lagerverwaltung (Stückzahl, automatisch reduziert)
+- **Kategorienverwaltung** – Kategorien im Adminbereich direkt anlegen, umbenennen und löschen
 - **Statistik & Export**
   - Umsatzübersicht gesamt und nach Zahlungsart (Bar / Karte)
   - Produktauswertung mit Balkendiagramm
@@ -168,6 +169,7 @@ src/
     ├── +page.svelte      # Hauptkasse (POS)
     └── admin/
         ├── +page.svelte       # Admin-Dashboard
+        ├── categories/        # Kategorienverwaltung
         ├── products/          # Produktverwaltung
         ├── statistics/        # Statistik & Export
         └── settings/          # Einstellungen & Datensicherung
