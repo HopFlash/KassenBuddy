@@ -9,6 +9,7 @@
 		currency: 'EUR',
 		shopName: 'KassenBuddy',
 		quickDiscountPercents: [5, 10, 20],
+		categories: ['Bier', 'Wein', 'Spirituosen', 'Softdrinks', 'Wasser', 'Cocktails', 'Snacks', 'Sonstiges'],
 		drinkQuotaCounter: 0,
 		checkoutLayout: 'compact'
 	});
@@ -141,9 +142,9 @@
 
 <h1 class="text-2xl font-bold mb-6">Einstellungen</h1>
 
-<div class="max-w-lg space-y-6">
+<div class="max-w-lg space-y-4 sm:space-y-6">
 	<!-- General -->
-	<div class="bg-surface-light rounded-xl p-6">
+	<div class="bg-surface-light rounded-xl p-4 sm:p-6">
 		<h2 class="font-bold mb-4">Allgemein</h2>
 		<div class="space-y-4">
 			<div>
@@ -161,7 +162,7 @@
 
 			<div>
 				<p class="block text-sm text-text-muted mb-1">Schnellrabatte (%)</p>
-				<div class="grid grid-cols-3 gap-2">
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
 					{#each [0, 1, 2] as idx}
 						<input
 							type="number"
@@ -194,7 +195,7 @@
 
 			<div>
 				<p class="block text-sm text-text-muted mb-1">Bezahl-Dialog Layout</p>
-				<div class="grid grid-cols-2 gap-2">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 					<button
 						type="button"
 						class="rounded-xl py-3 font-semibold transition-colors border-2 text-sm {settings.checkoutLayout === 'compact' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
@@ -214,7 +215,7 @@
 			</div>
 			<button
 				type="button"
-				class="bg-accent hover:bg-accent-hover text-white rounded-xl px-6 py-3 font-semibold transition-colors"
+				class="bg-accent hover:bg-accent-hover text-white rounded-xl min-h-11 px-6 py-3 font-semibold transition-colors"
 				onclick={handleSaveGeneral}
 			>
 				{saved ? '✓ Gespeichert' : 'Speichern'}
@@ -223,7 +224,7 @@
 	</div>
 
 	<!-- PIN Change -->
-	<div class="bg-surface-light rounded-xl p-6">
+	<div class="bg-surface-light rounded-xl p-4 sm:p-6">
 		<h2 class="font-bold mb-4">Admin-PIN ändern</h2>
 		<div class="space-y-4">
 			<div>
@@ -260,7 +261,7 @@
 
 			<button
 				type="button"
-				class="bg-warning/20 hover:bg-warning/30 text-warning rounded-xl px-6 py-3 font-semibold transition-colors"
+				class="bg-warning/20 hover:bg-warning/30 text-warning rounded-xl min-h-11 px-6 py-3 font-semibold transition-colors"
 				onclick={handleChangePin}
 			>
 				PIN ändern
@@ -269,14 +270,14 @@
 	</div>
 
 	<!-- Backup / Restore -->
-	<div class="bg-surface-light rounded-xl p-6">
+	<div class="bg-surface-light rounded-xl p-4 sm:p-6">
 		<h2 class="font-bold mb-1">Datensicherung</h2>
 		<p class="text-sm text-text-muted mb-4">Exportiert alle Produkte inkl. Bilder und Einstellungen als einzelne JSON-Datei.</p>
 
 		<div class="flex flex-col gap-3">
 			<button
 				type="button"
-				class="bg-accent hover:bg-accent-hover text-white rounded-xl px-6 py-3 font-semibold transition-colors disabled:opacity-50"
+				class="bg-accent hover:bg-accent-hover text-white rounded-xl min-h-11 px-6 py-3 font-semibold transition-colors disabled:opacity-50"
 				onclick={handleExport}
 				disabled={exportLoading}
 			>
@@ -300,17 +301,17 @@
 				<div class="bg-warning/10 border border-warning/40 rounded-xl p-4 flex flex-col gap-3">
 					<p class="text-sm text-warning font-semibold">⚠️ Alle vorhandenen Produkte und Einstellungen werden überschrieben!</p>
 					<p class="text-xs text-text-muted">Datei: {pendingImportFile.name}</p>
-					<div class="flex gap-2">
+					<div class="flex flex-col sm:flex-row gap-2">
 						<button
 							type="button"
-							class="bg-danger/20 hover:bg-danger/30 text-danger rounded-xl px-4 py-2 font-semibold text-sm transition-colors"
+							class="bg-danger/20 hover:bg-danger/30 text-danger rounded-xl min-h-10 px-4 py-2 font-semibold text-sm transition-colors"
 							onclick={confirmImport}
 						>
 							Ja, importieren
 						</button>
 						<button
 							type="button"
-							class="bg-surface-lighter hover:opacity-80 rounded-xl px-4 py-2 font-semibold text-sm transition-colors"
+							class="bg-surface-lighter hover:opacity-80 rounded-xl min-h-10 px-4 py-2 font-semibold text-sm transition-colors"
 							onclick={cancelImport}
 						>
 							Abbrechen

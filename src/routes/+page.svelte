@@ -43,9 +43,9 @@
 	}
 </script>
 
-<div class="flex h-full">
+<div class="flex h-full min-h-0">
 	<!-- Left: Products -->
-	<div class="flex-1 flex flex-col p-4 min-w-0">
+	<div class="flex-1 flex flex-col p-4 min-w-0 min-h-0">
 		<!-- Header -->
 		<div class="flex items-center justify-between mb-4 shrink-0">
 			<h1 class="text-2xl font-bold">🧾 KassenBuddy</h1>
@@ -73,7 +73,7 @@
 	</div>
 
 	<!-- Right: Cart -->
-	<div class="w-80 xl:w-96 bg-surface-light border-l border-surface-lighter p-4 flex flex-col shrink-0">
+	<div class="w-80 xl:w-96 bg-surface-light border-l border-surface-lighter p-4 flex flex-col shrink-0 min-h-0">
 		<Cart oncheckout={() => (checkoutOpen = true)} />
 	</div>
 </div>

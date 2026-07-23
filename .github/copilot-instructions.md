@@ -36,6 +36,7 @@ Build/deployment model:
 - Use Svelte 5 runes (`$state`, `$derived`) for local/reactive state across routes/components instead of legacy store patterns.
 - Keep all persistent business data access in `$lib/db`; reuse its helpers (`getAllProducts`, `getSettings`, `saveTransaction`, etc.) instead of duplicating DB logic.
 - Settings writes/reads should go through DB normalization (`normalizeSettings`, `normalizeQuickDiscountPercents`) to keep backward compatibility and safe defaults.
+- Product categories are user-managed and persisted in `settings.categories`; do not hardcode category lists in admin/POS UI.
 - Discount handling is modeled as a synthetic cart product (`id` prefix `discount:`) in `cart.svelte.ts`; only one percentage discount is active at a time.
 - Product stock uses `null` to mean “unlimited stock”; non-null values are decremented on checkout.
 - Internal links and static asset/data fetches should use `$app/paths` (`base`) so the app works under relative/static hosting.

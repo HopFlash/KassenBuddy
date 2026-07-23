@@ -39,6 +39,7 @@ export interface Settings {
 	currency: string;
 	shopName: string;
 	quickDiscountPercents: [number, number, number];
+	categories: string[];
 	drinkQuotaCounter: number;
 	checkoutLayout: 'classic' | 'compact';
 }
@@ -48,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	currency: 'EUR',
 	shopName: 'KassenBuddy',
 	quickDiscountPercents: [5, 10, 20],
+	categories: ['Bier', 'Wein', 'Spirituosen', 'Softdrinks', 'Wasser', 'Cocktails', 'Snacks', 'Sonstiges'],
 	drinkQuotaCounter: 0,
 	checkoutLayout: 'compact'
 };

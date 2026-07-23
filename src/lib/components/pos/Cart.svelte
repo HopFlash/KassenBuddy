@@ -51,11 +51,11 @@
 	<!-- Cart items -->
 	<div class="rounded-lg p-2 bg-surface-lighter mb-2">
 		<p class="text-xs text-text-muted mb-2">Schnellrabatt</p>
-		<div class="flex gap-2">
+		<div class="flex flex-wrap gap-2">
 			{#each quickDiscounts as percent}
 				<button
 					type="button"
-					class="flex-1 rounded-lg py-2 text-xs font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
+					class="min-w-0 flex-1 rounded-lg min-h-10 py-2 text-xs font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
 					onclick={() => applyDiscount(percent)}
 					disabled={cart.subtotal <= 0}
 				>
@@ -64,7 +64,7 @@
 			{/each}
 			<button
 				type="button"
-				class="rounded-lg px-3 py-2 text-xs font-semibold bg-danger/15 text-danger hover:bg-danger/25 transition-colors disabled:opacity-40"
+				class="rounded-lg px-3 min-h-10 py-2 text-xs font-semibold bg-danger/15 text-danger hover:bg-danger/25 transition-colors disabled:opacity-40"
 				onclick={() => cart.removeDiscount()}
 				disabled={!cart.hasDiscount}
 			>
@@ -148,7 +148,7 @@
 
 		<button
 			type="button"
-			class="w-full bg-success hover:bg-success/80 active:bg-success/60 text-white rounded-xl py-4 text-lg font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+			class="w-full bg-success hover:bg-success/80 active:bg-success/60 text-white rounded-xl min-h-12 py-4 text-lg font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 			disabled={cart.items.length === 0}
 			onclick={oncheckout}
 		>

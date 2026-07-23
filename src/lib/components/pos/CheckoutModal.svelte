@@ -106,7 +106,7 @@
 
 				{#if paymentMethod === 'cash'}
 					<!-- Landscape-only: change preview + actions -->
-					<div class="hidden landscape:flex flex-col gap-1 flex-1 min-h-0">
+					<div class="hidden landscape:flex flex-col gap-1.5 flex-1 min-h-0">
 						{#if numpadValue && parsedAmount !== 0}
 							<div class="shrink-0 text-center rounded-lg p-1 {changePreview >= 0 ? 'bg-success/10' : 'bg-danger/10'}">
 								<p class="text-xs {changePreview >= 0 ? 'text-success' : 'text-danger'}">
@@ -122,7 +122,7 @@
 								{#each [5, 10, 20, 50] as amount}
 									<button
 										type="button"
-										class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-16 py-3.0 text-m font-semibold transition-colors"
+										class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-14 py-3 text-sm font-semibold transition-colors"
 										onclick={() => {
 											const amountValue = String(amount).replace('.', ',');
 											numpadValue = numpadValue.startsWith('-') ? `-${amountValue}` : amountValue;
@@ -134,7 +134,7 @@
 							</div>
 							<button
 								type="button"
-								class="w-full min-h-16 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-3.0 text-m font-semibold transition-colors"
+								class="w-full min-h-14 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-3 text-sm font-semibold transition-colors"
 								onclick={() => handleConfirm(cart.total)}
 								disabled={processing}
 							>
@@ -143,14 +143,14 @@
 							<div class="grid grid-cols-2 gap-1">
 								<button
 									type="button"
-									class="bg-surface-lighter hover:bg-danger/30 text-danger rounded-lg min-h-9 py-1 text-sm font-semibold transition-colors"
+									class="bg-surface-lighter hover:bg-danger/30 text-danger rounded-lg min-h-10 py-2 text-sm font-semibold transition-colors"
 									onclick={handleClose}
 								>
 									Abbrechen
 								</button>
 								<button
 									type="button"
-									class="bg-success hover:bg-success/80 text-white rounded-lg min-h-9 py-1 text-sm font-semibold transition-colors disabled:opacity-40"
+									class="bg-success hover:bg-success/80 text-white rounded-lg min-h-10 py-2 text-sm font-semibold transition-colors disabled:opacity-40"
 									disabled={!numpadValue || parsedAmount === 0}
 									onclick={() => handleConfirm(parsedAmount)}
 								>
@@ -212,4 +212,3 @@
 		</div>
 	{/if}
 </Modal>
-

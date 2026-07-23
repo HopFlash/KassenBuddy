@@ -25,3 +25,22 @@ html, body {
 	touch-action: manipulation;
 	user-select: none;
 }
+
+.admin-scrollbar {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-surface-lighter) var(--color-surface);
+}
+
+.admin-scrollbar::-webkit-scrollbar {
+	width: 12px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-track {
+	background: var(--color-surface);
+}
+
+.admin-scrollbar::-webkit-scrollbar-thumb {
+	background: var(--color-surface-lighter);
+	border-radius: 9999px;
+	border: 2px solid var(--color-surface);
+}

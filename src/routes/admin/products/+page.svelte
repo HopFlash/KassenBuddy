@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getAllProducts, saveProduct, deleteProduct } from '$lib/db';
+	import { getAllProducts, saveProduct, deleteProduct, getCategories } from '$lib/db';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { generateId } from '$lib/utils/id';
 	import { fileToBlob, getBlobUrl, revokeBlobUrl } from '$lib/utils/image';
 	import type { Product } from '$lib/types';
-	import { CATEGORIES } from '$lib/types';
 	import Modal from '$lib/components/shared/Modal.svelte';
 
 	let products = $state<Product[]>([]);
+	let categories = $state<string[]>([]);
 	let editProduct = $state<Product | null>(null);
 	let showForm = $state(false);
 	let confirmDeleteId = $state<string | null>(null);
@@ -17,7 +17,7 @@
 	let formName = $state('');
 	let formPrice = $state('');
 	let formPurchasePrice = $state('');
-	let formCategory = $state<string>(CATEGORIES[0]);
+	let formCategory = $state<string>('Sonstiges');
 	let formSortOrder = $state('');
 	let formActive = $state(true);
 	let formTrackStock = $state(false);
@@ -38,11 +38,21 @@
 		showForm = false;
 	}
 
-	onMount(loadProducts);
+	onMount(loadData);
 
-	async function loadProducts() {
-		products = await getAllProducts();
+	async function loadData() {
+		const [allProducts, configuredCategories] = await Promise.all([getAllProducts(), getCategories()]);
+		products = allProducts;
+		categories = configuredCategories;
+		if (!categories.includes(formCategory)) {
+			formCategory = categories[0] ?? 'Sonstiges';
+		}
 	}
+
+	const availableCategories = $derived.by(() => {
+		if (categories.includes(formCategory)) return categories;
+		return [formCategory, ...categories];
+	});
 
 	function openNewForm() {
 		revokePreviewUrl();
@@ -50,7 +60,7 @@
 		formName = '';
 		formPrice = '';
 		formPurchasePrice = '';
-		formCategory = CATEGORIES[0];
+		formCategory = categories[0] ?? 'Sonstiges';
 		formSortOrder = String(products.length + 1);
 		formActive = true;
 		formTrackStock = false;
@@ -116,19 +126,19 @@
 
 		await saveProduct(product);
 		closeForm();
-		await loadProducts();
+		await loadData();
 	}
 
 	async function handleDelete(id: string) {
 		revokeBlobUrl(id);
 		await deleteProduct(id);
 		confirmDeleteId = null;
-		await loadProducts();
+		await loadData();
 	}
 
 	async function toggleActive(product: Product) {
 		await saveProduct({ ...product, active: !product.active });
-		await loadProducts();
+		await loadData();
 	}
 </script>
 
@@ -209,7 +219,7 @@
 <!-- Edit/Create Modal -->
 <Modal open={showForm} title={editProduct ? 'Produkt bearbeiten' : 'Neues Produkt'} onclose={closeForm} wide>
 	<form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="space-y-4">
-		<div class="grid grid-cols-2 gap-4">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 			<div>
 				<label for="name" class="block text-sm text-text-muted mb-1">Name</label>
 				<input
@@ -246,7 +256,7 @@
 			</div>
 		</div>
 
-		<div class="grid grid-cols-2 gap-4">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 			<div>
 				<label for="category" class="block text-sm text-text-muted mb-1">Kategorie</label>
 				<select
@@ -254,7 +264,7 @@
 					class="w-full bg-surface-lighter rounded-lg px-4 py-3 text-text outline-none focus:ring-2 focus:ring-accent"
 					bind:value={formCategory}
 				>
-					{#each CATEGORIES as cat}
+					{#each availableCategories as cat}
 						<option value={cat}>{cat}</option>
 					{/each}
 				</select>
@@ -315,17 +325,17 @@
 			</div>
 		{/if}
 
-		<div class="flex gap-3 pt-2">
+		<div class="flex flex-col sm:flex-row gap-3 pt-2">
 			<button
 				type="button"
-				class="flex-1 bg-surface-lighter hover:bg-surface-lighter/80 rounded-xl py-3 font-semibold transition-colors"
+				class="flex-1 bg-surface-lighter hover:bg-surface-lighter/80 rounded-xl min-h-11 py-3 font-semibold transition-colors"
 				onclick={closeForm}
 			>
 				Abbrechen
 			</button>
 			<button
 				type="submit"
-				class="flex-1 bg-accent hover:bg-accent-hover text-white rounded-xl py-3 font-semibold transition-colors"
+				class="flex-1 bg-accent hover:bg-accent-hover text-white rounded-xl min-h-11 py-3 font-semibold transition-colors"
 			>
 				{editProduct ? 'Speichern' : 'Anlegen'}
 			</button>

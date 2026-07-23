@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { Product, Transaction, Settings } from '$lib/types';
-import { DEFAULT_SETTINGS } from '$lib/types';
+import { DEFAULT_SETTINGS, CATEGORIES } from '$lib/types';
 
 const DB_NAME = 'kasse-db';
 const DB_VERSION = 1;
@@ -23,6 +23,34 @@ function normalizeQuickDiscountPercents(value: unknown): [number, number, number
 	return [...DEFAULT_SETTINGS.quickDiscountPercents] as [number, number, number];
 }
 
+function normalizeCategoryName(value: unknown): string {
+	return String(value ?? '').trim().replace(/\s+/g, ' ');
+}
+
+function categoriesEqual(a: string, b: string): boolean {
+	return a.toLocaleLowerCase('de-DE') === b.toLocaleLowerCase('de-DE');
+}
+
+function normalizeCategories(value: unknown): string[] {
+	const fallback = 'Sonstiges';
+	const source = Array.isArray(value) ? value : CATEGORIES;
+	const normalized: string[] = [];
+
+	for (const raw of source) {
+		const category = normalizeCategoryName(raw);
+		if (!category) continue;
+		if (!normalized.some((existing) => categoriesEqual(existing, category))) {
+			normalized.push(category);
+		}
+	}
+
+	if (!normalized.some((category) => categoriesEqual(category, fallback))) {
+		normalized.push(fallback);
+	}
+
+	return normalized;
+}
+
 function normalizeSettings(settings: Partial<Settings> | null | undefined): Settings {
 	const merged = { ...DEFAULT_SETTINGS, ...(settings ?? {}) };
 	return {
@@ -30,6 +58,7 @@ function normalizeSettings(settings: Partial<Settings> | null | undefined): Sett
 		currency: String(merged.currency ?? DEFAULT_SETTINGS.currency),
 		shopName: String(merged.shopName ?? DEFAULT_SETTINGS.shopName),
 		quickDiscountPercents: normalizeQuickDiscountPercents(merged.quickDiscountPercents),
+		categories: normalizeCategories(merged.categories),
 		drinkQuotaCounter: Number.isFinite(Number(merged.drinkQuotaCounter))
 			? Math.trunc(Number(merged.drinkQuotaCounter))
 			: DEFAULT_SETTINGS.drinkQuotaCounter,
@@ -172,4 +201,92 @@ export async function getSettings(): Promise<Settings> {
 export async function saveSettings(settings: Settings): Promise<void> {
 	const db = await getDb();
 	await db.put('settings', normalizeSettings(settings), 'main');
+}
+
+export async function getCategories(): Promise<string[]> {
+	const settings = await getSettings();
+	return settings.categories;
+}
+
+export async function saveCategories(categories: string[]): Promise<string[]> {
+	const settings = await getSettings();
+	const normalized = normalizeCategories(categories);
+	await saveSettings({ ...settings, categories: normalized });
+	return normalized;
+}
+
+export async function addCategory(name: string): Promise<string[]> {
+	const category = normalizeCategoryName(name);
+	if (!category) {
+		throw new Error('Kategorie darf nicht leer sein');
+	}
+
+	const categories = await getCategories();
+	if (categories.some((existing) => categoriesEqual(existing, category))) {
+		throw new Error('Kategorie existiert bereits');
+	}
+
+	return saveCategories([...categories, category]);
+}
+
+export async function renameCategory(oldName: string, newName: string): Promise<string[]> {
+	const oldCategory = normalizeCategoryName(oldName);
+	const newCategory = normalizeCategoryName(newName);
+
+	if (!oldCategory || !newCategory) {
+		throw new Error('Kategoriename darf nicht leer sein');
+	}
+	if (categoriesEqual(oldCategory, 'Sonstiges')) {
+		throw new Error('„Sonstiges“ kann nicht umbenannt werden');
+	}
+
+	const categories = await getCategories();
+	const oldIndex = categories.findIndex((category) => categoriesEqual(category, oldCategory));
+	if (oldIndex === -1) {
+		throw new Error('Kategorie nicht gefunden');
+	}
+
+	const duplicate = categories.find(
+		(category, index) => index !== oldIndex && categoriesEqual(category, newCategory)
+	);
+	if (duplicate) {
+		throw new Error('Kategorie existiert bereits');
+	}
+
+	const updatedCategories = [...categories];
+	updatedCategories[oldIndex] = newCategory;
+	await saveCategories(updatedCategories);
+
+	const products = await getAllProducts();
+	const affected = products.filter((product) => categoriesEqual(product.category, oldCategory));
+	await Promise.all(affected.map((product) => saveProduct({ ...product, category: newCategory })));
+
+	return getCategories();
+}
+
+export async function deleteCategory(name: string): Promise<string[]> {
+	const category = normalizeCategoryName(name);
+	const fallback = 'Sonstiges';
+
+	if (!category) {
+		throw new Error('Kategorie darf nicht leer sein');
+	}
+	if (categoriesEqual(category, fallback)) {
+		throw new Error('„Sonstiges“ kann nicht gelöscht werden');
+	}
+
+	const categories = await getCategories();
+	const exists = categories.some((existing) => categoriesEqual(existing, category));
+	if (!exists) {
+		throw new Error('Kategorie nicht gefunden');
+	}
+
+	const updatedCategories = categories.filter((existing) => !categoriesEqual(existing, category));
+	await saveCategories(updatedCategories);
+
+	const products = await getAllProducts();
+	const affected = products.filter((product) => categoriesEqual(product.category, category));
+	await Promise.all(affected.map((product) => saveProduct({ ...product, category: fallback })));
+
+	return getCategories();
 }

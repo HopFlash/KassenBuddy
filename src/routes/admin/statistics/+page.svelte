@@ -208,7 +208,7 @@
 	}
 </script>
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
 	<h1 class="text-2xl font-bold">Statistik & Export</h1>
 	<div class="flex gap-2 flex-wrap items-start">
 		<!-- hidden file input for JSON import -->
@@ -325,7 +325,7 @@
 </div>
 
 <!-- Summary cards -->
-<div class="grid grid-cols-3 gap-4 mb-4">
+<div class="grid grid-cols-2 xl:grid-cols-3 gap-4 mb-4">
 	<StatCard pad="sm" label="Transaktionen" value={transactions.length} />
 	<StatCard pad="sm" label="Gesamtumsatz" value={formatCurrency(totalRevenue)} valueClass="text-success" />
 	<StatCard pad="sm" label="Ø pro Transaktion" value={transactions.length > 0 ? formatCurrency(totalRevenue / transactions.length) : '–'} />

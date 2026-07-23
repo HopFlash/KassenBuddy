@@ -44,7 +44,7 @@
 	const buttons = ['7', '8', '9', '4', '5', '6', '1', '2', '3', ',', '0', '⌫'];
 </script>
 
-<div class="flex flex-col gap-1.5 sm:gap-2 landscape:gap-1 h-full">
+<div class="flex flex-col gap-1.5 sm:gap-2 landscape:gap-1 h-full min-h-0">
 	<p class="text-sm text-text-muted shrink-0 landscape:hidden">{label}</p>
 	<div class="bg-surface-lighter rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 landscape:py-1 text-right text-xl sm:text-2xl landscape:text-lg font-mono min-h-10 sm:min-h-12 landscape:min-h-8 shrink-0">
 		{value || '0'} €
@@ -71,7 +71,7 @@
 		{#each buttons as btn}
 			<button
 				type="button"
-				class="bg-surface-light border border-surface-lighter hover:bg-surface-lighter active:bg-accent rounded-lg min-h-10 sm:min-h-12 text-lg sm:text-xl font-semibold transition-colors"
+				class="bg-surface-light border border-surface-lighter hover:bg-surface-lighter active:bg-accent rounded-lg min-h-10 sm:min-h-12 landscape:min-h-9 text-lg sm:text-xl font-semibold transition-colors"
 				onclick={() => press(btn)}
 			>
 				{btn}
@@ -84,7 +84,7 @@
 		{#each [5, 10, 20, 50] as amount}
 			<button
 				type="button"
-				class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-12 sm:min-h-14 py-2.5 sm:py-3 text-sm font-semibold transition-colors"
+				class="bg-accent/20 hover:bg-accent/30 active:bg-accent text-accent rounded-lg min-h-11 sm:min-h-14 py-2.5 sm:py-3 text-sm font-semibold transition-colors"
 				onclick={() => {
 					const amountValue = String(amount).replace('.', ',');
 					value = value.startsWith('-') ? `-${amountValue}` : amountValue;
