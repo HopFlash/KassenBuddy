@@ -106,6 +106,12 @@ pnpm build:android
 
 # Android-Projekt in Android Studio öffnen
 pnpm android:open
+
+# Debug-APK bauen (Linux/macOS)
+pnpm android:apk:linux
+
+# Debug-APK bauen (Windows)
+pnpm android:apk:windows
 ```
 
 Damit bleiben Website-Build (`pnpm build:web`) und Android-Erzeugung (`pnpm build:android`) getrennt.
@@ -115,6 +121,48 @@ Damit bleiben Website-Build (`pnpm build:web`) und Android-Erzeugung (`pnpm buil
 2. Installer starten und das Standard-Setup wählen.
 3. Beim ersten Start die empfohlenen SDK-Komponenten installieren.
 4. Danach das Projekt mit `pnpm android:open` öffnen.
+
+### Android-Build auf Smartphone testen / installieren
+
+1. Android-Projekt aktualisieren:
+   ```sh
+   pnpm build:android
+   pnpm android:open
+   ```
+2. Smartphone per USB verbinden und **USB-Debugging** aktivieren.
+3. In Android Studio das Gerät auswählen und mit **Run (▶)** die Debug-App installieren.
+
+Optional (APK-Datei zum manuellen Installieren):
+
+- Linux/macOS: `pnpm android:apk:linux`
+- Windows: `pnpm android:apk:windows`
+
+Die APK liegt danach unter:
+`android/app/build/outputs/apk/debug/app-debug.apk`
+
+### Android-Release für Play Store oder F-Droid
+
+1. Android-Assets aktualisieren:
+   ```sh
+   pnpm build:android
+   ```
+2. Release-Build erzeugen:
+   - **Play Store (AAB)**  
+     - Linux/macOS: `pnpm android:aab:linux`  
+     - Windows: `pnpm android:aab:windows`
+   - **APK (z. B. für F-Droid-Repo/Seitload)**  
+     - Linux/macOS: `pnpm android:apk-release:linux`  
+     - Windows: `pnpm android:apk-release:windows`
+   - Hinweis Windows: Die `:windows`-Skripte wählen automatisch ein kompatibles JDK (17–21). Ein systemweites JAVA_HOME auf JDK 26 wird dafür ignoriert.
+3. Signing in Android Studio/Gradle mit eigenem Keystore konfigurieren (Release muss signiert sein).
+4. Artefakte:
+   - AAB: `android/app/build/outputs/bundle/release/app-release.aab`
+   - APK: `android/app/build/outputs/apk/release/app-release-unsigned.apk` (nach Signing als signierte APK verwenden)
+5. Upload:
+   - **Play Store**: signiertes `.aab` in der Google Play Console hochladen.
+   - **F-Droid**:
+     - Offizielles F-Droid: Projekt einreichen, F-Droid baut aus Source selbst.
+     - Eigener F-Droid-Repo/Manueller Vertrieb: signierte Release-APK bereitstellen.
 
 ### Workspace-Management
 
