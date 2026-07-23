@@ -5,7 +5,12 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "pnpm run build:web",
+		"build:web": "vite build",
+		"android:init": "npx cap add android",
+		"android:open": "npx cap open android",
+		"android:sync": "npx cap sync android",
+		"build:android": "pnpm run build:web && pnpm run android:sync",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -28,6 +33,9 @@
 		"workbox-window": "^7.4.1"
 	},
 	"dependencies": {
+		"@capacitor/android": "^7.4.3",
+		"@capacitor/cli": "^7.4.3",
+		"@capacitor/core": "^7.4.3",
 		"idb": "^8.0.3",
 		"pnpm": "11.5.2",
 		"xlsx": "^0.18.5"

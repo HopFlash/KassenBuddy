@@ -52,10 +52,30 @@ pnpm check:watch
 ### Build erstellen
 
 ```sh
-pnpm build
+pnpm build:web
 ```
 
 Output: `build/` Ordner mit statischen Assets.
+
+### Android-Build vorbereiten (Capacitor)
+
+```sh
+# einmalig Android-Plattform erzeugen
+pnpm android:init
+
+# Web-Build + Sync in Android-Projekt
+pnpm build:android
+
+# Android-Projekt in Android Studio öffnen
+pnpm android:open
+```
+
+## Android Studio installieren
+
+1. Android Studio von der offiziellen Android-Developer-Seite herunterladen.
+2. Installer starten und das Standard-Setup wählen.
+3. Beim ersten Start die empfohlenen SDK-Komponenten installieren.
+4. Danach das Projekt mit `pnpm android:open` öffnen.
 
 ### Build lokal testen
 

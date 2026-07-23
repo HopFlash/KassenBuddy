@@ -88,11 +88,32 @@ pnpm check
 ### Produktions-Build erstellen
 
 ```sh
-pnpm build
+pnpm build:web
 pnpm preview
 ```
 
 Der fertige Build liegt im Ordner `build/` und kann auf jedem statischen Webserver oder lokal geöffnet werden.
+
+### Android-App mit Capacitor bauen (separat vom Web-Deploy)
+
+```sh
+# einmalig Plattform anlegen
+pnpm android:init
+
+# Web-Build + Capacitor-Sync für Android
+pnpm build:android
+
+# Android-Projekt in Android Studio öffnen
+pnpm android:open
+```
+
+Damit bleiben Website-Build (`pnpm build:web`) und Android-Erzeugung (`pnpm build:android`) getrennt.
+
+**Android Studio installieren:**
+1. Android Studio von der offiziellen Android-Developer-Webseite herunterladen.
+2. Installer starten und das Standard-Setup wählen.
+3. Beim ersten Start die empfohlenen SDK-Komponenten installieren.
+4. Danach das Projekt mit `pnpm android:open` öffnen.
 
 ### Workspace-Management
 
