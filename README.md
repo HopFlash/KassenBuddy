@@ -140,6 +140,31 @@ Optional (APK-Datei zum manuellen Installieren):
 Die APK liegt danach unter:
 `android/app/build/outputs/apk/debug/app-debug.apk`
 
+#### Ohne Android Studio (ADB per USB oder WLAN)
+
+1. ADB verfügbar machen:
+   - Standardpfad Windows: `C:\Users\<USER>\AppData\Local\Android\Sdk\platform-tools\adb.exe`
+2. Gerät verbinden:
+   - USB: `adb devices`
+   - WLAN-Debugging:
+     - `adb pair <IP>:<PAIRING_PORT>`
+     - `adb connect <IP>:<DEBUG_PORT>`
+3. Installation:
+   - `adb install -r "android\app\build\outputs\apk\debug\app-debug.apk"`
+4. Bei mehreren Geräten immer mit Serial arbeiten:
+   - `adb -s <SERIAL> install -r "android\app\build\outputs\apk\debug\app-debug.apk"`
+
+#### Häufige Installationsprobleme (Kurzlösung)
+
+- `INSTALL_PARSE_FAILED_NO_CERTIFICATES`: APK ist unsigniert/beschädigt.  
+  → Für Tests immer `pnpm android:apk:windows` oder `pnpm android:apk:linux` nutzen.
+- „App nicht installiert“ bei Update:
+  - alte App vollständig deinstallieren (inkl. Arbeitsprofil/Zweitnutzer),
+  - dann neu installieren.
+- Für genaue Fehlerdiagnose:
+  - `adb install -r ...`
+  - `adb logcat -d | findstr /i "PackageInstaller INSTALL_FAILED"`
+
 ### Android-Release für Play Store oder F-Droid
 
 1. Android-Assets aktualisieren:
@@ -163,6 +188,9 @@ Die APK liegt danach unter:
    - **F-Droid**:
      - Offizielles F-Droid: Projekt einreichen, F-Droid baut aus Source selbst.
      - Eigener F-Droid-Repo/Manueller Vertrieb: signierte Release-APK bereitstellen.
+6. Play Console Kosten & Sichtbarkeit:
+   - Google Play Developer-Konto: einmalig 25 USD.
+   - Nicht öffentlich auffindbar über interne/geschlossene Test-Tracks oder private Apps (Managed Google Play).
 
 ### Workspace-Management
 
