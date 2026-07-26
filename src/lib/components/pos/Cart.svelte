@@ -76,12 +76,14 @@
 	<div class="flex-1 overflow-y-auto space-y-2 mb-3">
 		{#each cart.items as item (item.product.id)}
 			{@const isOver = item.product.stock !== null && item.quantity > item.product.stock}
-			{@const isDiscount = item.product.price < 0}
+			{@const isDiscount = cart.isDiscountItem(item)}
+			{@const unitPrice = cart.getItemUnitPrice(item)}
+			{@const itemTotal = cart.getItemTotal(item)}
 			<div class="rounded-lg p-3 flex items-center gap-3 {isOver ? 'bg-warning/10 ring-1 ring-warning/40' : 'bg-surface-lighter'}">
 				<div class="flex-1 min-w-0">
 					<p class="font-semibold text-sm truncate">{item.product.name}</p>
 					<p class="text-text-muted text-xs">
-						{formatCurrency(cart.getItemUnitPrice(item))} × {item.quantity}
+						{formatCurrency(unitPrice)} × {item.quantity}
 						{#if isDiscount}
 							<span class="text-accent"> · Rabattposition</span>
 						{/if}
@@ -109,7 +111,7 @@
 						</button>
 					{/if}
 				</div>
-				<p class="font-bold text-sm w-20 text-right">{formatCurrency(cart.getItemTotal(item))}</p>
+				<p class="font-bold text-sm w-20 text-right">{formatCurrency(itemTotal)}</p>
 			</div>
 		{:else}
 			<div class="text-center text-text-muted py-8">
