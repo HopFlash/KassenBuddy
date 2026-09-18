@@ -12,6 +12,7 @@ export type KasseDB = IDBPDatabase<{
 }>;
 
 let dbInstance: KasseDB | null = null;
+let dbInitPromise: Promise<KasseDB> | null = null;
 
 function normalizeQuickDiscountPercents(value: unknown): [number, number, number] {
 	if (Array.isArray(value) && value.length >= 3) {
@@ -68,32 +69,42 @@ function normalizeSettings(settings: Partial<Settings> | null | undefined): Sett
 
 export async function getDb(): Promise<KasseDB> {
 	if (dbInstance) return dbInstance;
+	if (dbInitPromise) return dbInitPromise;
 
-	dbInstance = (await openDB(DB_NAME, DB_VERSION, {
-		upgrade(db) {
-			const productStore = db.createObjectStore('products', { keyPath: 'id' });
-			productStore.createIndex('by-category', 'category');
+	dbInitPromise = (async () => {
+		const db = (await openDB(DB_NAME, DB_VERSION, {
+			upgrade(db) {
+				const productStore = db.createObjectStore('products', { keyPath: 'id' });
+				productStore.createIndex('by-category', 'category');
 
-			const txStore = db.createObjectStore('transactions', { keyPath: 'id' });
-			txStore.createIndex('by-timestamp', 'timestamp');
+				const txStore = db.createObjectStore('transactions', { keyPath: 'id' });
+				txStore.createIndex('by-timestamp', 'timestamp');
 
-			db.createObjectStore('settings');
+				db.createObjectStore('settings');
+			}
+		})) as unknown as KasseDB;
+
+		// Initialize default settings if not present
+		const settings = await db.get('settings', 'main');
+		if (!settings) {
+			await db.put('settings', DEFAULT_SETTINGS, 'main');
 		}
-	})) as unknown as KasseDB;
 
-	// Initialize default settings if not present
-	const settings = await dbInstance.get('settings', 'main');
-	if (!settings) {
-		await dbInstance.put('settings', DEFAULT_SETTINGS, 'main');
+		// Load default products on fresh install
+		const productCount = await db.count('products');
+		if (productCount === 0) {
+			await loadDefaults(db);
+		}
+
+		dbInstance = db;
+		return db;
+	})();
+
+	try {
+		return await dbInitPromise;
+	} finally {
+		dbInitPromise = null;
 	}
-
-	// Load default products on fresh install
-	const productCount = await dbInstance.count('products');
-	if (productCount === 0) {
-		await loadDefaults(dbInstance);
-	}
-
-	return dbInstance;
 }
 
 async function loadDefaults(db: KasseDB): Promise<void> {
@@ -178,6 +189,41 @@ export async function getTransactionsByDateRange(from: number, to: number): Prom
 export async function saveTransaction(tx: Transaction): Promise<void> {
 	const db = await getDb();
 	await db.put('transactions', tx);
+}
+
+/**
+ * Persists a completed checkout (transaction + settings + stock decrements)
+ * in a single IndexedDB transaction so the writes commit atomically and
+ * without the round-trip latency of multiple sequential awaits.
+ */
+export async function commitCheckout(
+	tx: Transaction,
+	settingsUpdate: Settings | null,
+	stockUpdates: { productId: string; quantity: number }[]
+): Promise<void> {
+	const db = await getDb();
+	const idbTx = db.transaction(['transactions', 'settings', 'products'], 'readwrite');
+
+	const writes: Promise<unknown>[] = [idbTx.objectStore('transactions').put(tx)];
+
+	if (settingsUpdate) {
+		writes.push(idbTx.objectStore('settings').put(settingsUpdate, 'main'));
+	}
+
+	if (stockUpdates.length > 0) {
+		const productsStore = idbTx.objectStore('products');
+		writes.push(
+			...stockUpdates.map(async ({ productId, quantity }) => {
+				const current = (await productsStore.get(productId)) as Product | undefined;
+				if (current && current.stock !== null) {
+					await productsStore.put({ ...current, stock: Math.max(0, current.stock - quantity) });
+				}
+			})
+		);
+	}
+
+	await Promise.all(writes);
+	await idbTx.done;
 }
 
 export async function deleteAllTransactions(): Promise<void> {

@@ -39,8 +39,8 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-				globIgnores: ['server/**'],
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,json}'],
+				globIgnores: ['server/**', '**/_app/version.json'],
 				navigateFallback: null
 			}
 		})

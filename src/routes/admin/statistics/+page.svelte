@@ -14,9 +14,20 @@
 	let filterActive = $state(false);
 	let confirmClear = $state(false);
 
-	const totalRevenue = $derived(transactions.reduce((sum, tx) => sum + tx.total, 0));
-	const cashRevenue = $derived(transactions.filter((tx) => (tx.paymentMethod ?? 'cash') === 'cash').reduce((sum, tx) => sum + tx.total, 0));
-	const cardRevenue = $derived(transactions.filter((tx) => tx.paymentMethod === 'card').reduce((sum, tx) => sum + tx.total, 0));
+	const revenueTotals = $derived.by(() => {
+		let total = 0;
+		let cash = 0;
+		let card = 0;
+		for (const tx of transactions) {
+			total += tx.total;
+			if ((tx.paymentMethod ?? 'cash') === 'cash') cash += tx.total;
+			else card += tx.total;
+		}
+		return { total, cash, card };
+	});
+	const totalRevenue = $derived(revenueTotals.total);
+	const cashRevenue = $derived(revenueTotals.cash);
+	const cardRevenue = $derived(revenueTotals.card);
 
 	// Product breakdown
 	const productBreakdown = $derived.by(() => {
