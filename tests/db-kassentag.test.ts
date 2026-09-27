@@ -228,6 +228,20 @@ describe('Kassentag database functions', () => {
 		await expect(db.get('kassentage', original.id)).resolves.toEqual(original);
 	});
 
+	it('rejects non-finite corrected timestamps without changing the record', async () => {
+		const { api, db } = await loadFreshDbModule();
+		const original = makeKassentag('record', 100, 200);
+		await db.put('kassentage', original);
+
+		await expect(api.updateKassentagTimes(original.id, Number.NaN, 200)).rejects.toThrow(
+			'Zeitstempel müssen gültige Zeitangaben sein'
+		);
+		await expect(api.updateKassentagTimes(original.id, 100, Number.POSITIVE_INFINITY)).rejects.toThrow(
+			'Zeitstempel müssen gültige Zeitangaben sein'
+		);
+		await expect(db.get('kassentage', original.id)).resolves.toEqual(original);
+	});
+
 	it('rejects correcting times for a missing Kassentag', async () => {
 		const { api } = await loadFreshDbModule();
 

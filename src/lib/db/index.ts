@@ -402,6 +402,9 @@ export async function updateKassentagTimes(
 	startedAt: number,
 	endedAt: number | null
 ): Promise<void> {
+	if (!Number.isFinite(startedAt) || (endedAt !== null && !Number.isFinite(endedAt))) {
+		throw new Error('Zeitstempel müssen gültige Zeitangaben sein');
+	}
 	if (endedAt !== null && startedAt >= endedAt) {
 		throw new Error('Startzeit muss vor der Endzeit liegen');
 	}

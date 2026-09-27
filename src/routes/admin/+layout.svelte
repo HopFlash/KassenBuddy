@@ -61,6 +61,12 @@
 					📊 Übersicht
 				</a>
 				<a
+					href="{base}/admin/kassentage"
+					class="px-4 py-3 rounded-xl hover:bg-surface-lighter transition-colors text-sm font-semibold"
+				>
+					📅 Kassentage
+				</a>
+				<a
 					href="{base}/admin/products"
 					class="px-4 py-3 rounded-xl hover:bg-surface-lighter transition-colors text-sm font-semibold"
 				>
