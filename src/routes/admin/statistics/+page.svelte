@@ -208,7 +208,8 @@
 				total: editTotal,
 				amountPaid: editAmountPaid,
 				change: editChange,
-				paymentMethod: editPaymentMethod
+				paymentMethod: editPaymentMethod,
+				kassentagId: null
 			};
 			await saveTransaction(tx);
 			await reloadCurrent();

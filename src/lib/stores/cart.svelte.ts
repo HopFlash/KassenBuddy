@@ -184,7 +184,8 @@ export const cart = {
 			total,
 			amountPaid,
 			change: Math.round((amountPaid - total) * 100) / 100,
-			paymentMethod
+			paymentMethod,
+			kassentagId: null
 		};
 
 		const soldDrinkCount = items
