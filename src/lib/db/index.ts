@@ -375,11 +375,20 @@ export async function startKassentag(): Promise<Kassentag> {
 
 export async function endKassentag(id: string): Promise<void> {
 	const db = await getDb();
-	const kassentag = await db.get('kassentage', id);
+	const idbTx = db.transaction('kassentage', 'readwrite');
+	const store = idbTx.store;
+	const kassentag = await store.get(id);
 	if (!kassentag) {
+		await idbTx.done;
 		throw new Error('Kassentag nicht gefunden');
 	}
-	await db.put('kassentage', { ...kassentag, endedAt: Date.now(), status: 'closed' });
+	const endedAt = Date.now();
+	if (endedAt <= kassentag.startedAt) {
+		await idbTx.done;
+		throw new Error('Startzeit muss vor der Endzeit liegen');
+	}
+	await store.put({ ...kassentag, endedAt, status: 'closed' });
+	await idbTx.done;
 }
 
 export async function getAllKassentage(): Promise<Kassentag[]> {

@@ -121,6 +121,66 @@ describe('Kassentag database functions', () => {
 		expect(ended?.endedAt).toBeGreaterThanOrEqual(beforeEnd);
 	});
 
+	it.each([
+		['the same millisecond', 1000],
+		['a future start correction', 1001]
+	])('rejects ending at or before %s without changing the open record', async (_case, startedAt) => {
+		const { api, db } = await loadFreshDbModule();
+		const active = makeKassentag('active', startedAt, null);
+		await db.put('kassentage', active);
+		const clock = vi.spyOn(Date, 'now').mockReturnValue(1000);
+
+		try {
+			await expect(api.endKassentag(active.id)).rejects.toThrow(
+				'Startzeit muss vor der Endzeit liegen'
+			);
+			await expect(db.get('kassentage', active.id)).resolves.toEqual(active);
+		} finally {
+			clock.mockRestore();
+		}
+	});
+
+	it('does not overwrite a concurrent start-time correction when ending', async () => {
+		const instanceA = await loadFreshDbModule();
+		const instanceB = await loadFreshDbModule();
+		const active = makeKassentag('active', 100, null);
+		await instanceA.db.put('kassentage', active);
+
+		const originalGet = IDBObjectStore.prototype.get;
+		let correctionStarted = false;
+		let correction: Promise<void> | undefined;
+		const getSpy = vi.spyOn(IDBObjectStore.prototype, 'get').mockImplementation(function (
+			this: IDBObjectStore,
+			key
+		) {
+			const request = originalGet.call(this, key);
+			if (this.name === 'kassentage' && key === active.id && !correctionStarted) {
+				correctionStarted = true;
+				correction = (async () => {
+					const tx = instanceB.db.transaction('kassentage', 'readwrite');
+					const current = await tx.store.get(active.id);
+					if (!current) throw new Error('Kassentag nicht gefunden');
+					await tx.store.put({ ...current, startedAt: 150 });
+					await tx.done;
+				})();
+			}
+			return request;
+		});
+
+		try {
+			await instanceA.api.endKassentag(active.id);
+			expect(correctionStarted).toBe(true);
+			await correction;
+			await expect(instanceA.db.get('kassentage', active.id)).resolves.toMatchObject({
+				startedAt: 150,
+				status: 'closed',
+				endedAt: expect.any(Number)
+			});
+		} finally {
+			getSpy.mockRestore();
+		}
+	});
+
 	it('rejects ending a missing Kassentag', async () => {
 		const { api } = await loadFreshDbModule();
 
