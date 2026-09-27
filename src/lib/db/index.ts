@@ -87,9 +87,22 @@ async function runLegacyMigration(db: KasseDB): Promise<void> {
 	const assignedCount = await db.countFromIndex('transactions', 'by-kassentag');
 	if (assignedCount >= totalCount) return;
 
-	const allTransactions = await db.getAll('transactions');
+	// The counts above are only a cheap preflight. Other tabs/module instances may migrate
+	// concurrently, so the actual create/reuse decision re-reads both stores inside one
+	// readwrite transaction; IndexedDB serializes overlapping readwrite transactions.
+	const idbTransaction = db.transaction(['transactions', 'kassentage'], 'readwrite');
+	const transactionStore = idbTransaction.objectStore('transactions');
+	const kassentagStore = idbTransaction.objectStore('kassentage');
+
+	const [allTransactions, existingKassentage] = await Promise.all([
+		transactionStore.getAll(),
+		kassentagStore.getAll()
+	]);
 	const unassigned = allTransactions.filter((transaction) => transaction.kassentagId == null);
-	if (unassigned.length === 0) return;
+	if (unassigned.length === 0) {
+		await idbTransaction.done;
+		return;
+	}
 
 	const transactionsByDay = new Map<string, Transaction[]>();
 	for (const transaction of unassigned) {
@@ -99,12 +112,7 @@ async function runLegacyMigration(db: KasseDB): Promise<void> {
 		else transactionsByDay.set(key, [transaction]);
 	}
 
-	const existingKassentage = await db.getAll('kassentage');
-	const idbTransaction = db.transaction(['transactions', 'kassentage'], 'readwrite');
-	const transactionStore = idbTransaction.objectStore('transactions');
-	const kassentagStore = idbTransaction.objectStore('kassentage');
 	const writes: Promise<unknown>[] = [];
-
 	for (const dayTransactions of transactionsByDay.values()) {
 		const reference = new Date(dayTransactions[0].timestamp);
 		const startedAt = startOfDay(reference);

@@ -143,6 +143,35 @@ describe('legacy transaction migration', () => {
 		expect(migrated?.kassentagId).toBe(kassentage[0].id);
 	});
 
+	it('creates one legacy Kassentag when separate module instances migrate concurrently', async () => {
+		const getDbA = await loadFreshGetDb();
+		const dbA = await getDbA();
+		const getDbB = await loadFreshGetDb();
+		const dbB = await getDbB();
+		expect(getDbA).not.toBe(getDbB);
+		expect(dbA).not.toBe(dbB);
+
+		const timestamp = new Date(2026, 3, 13, 11, 0).getTime();
+		await dbA.put('transactions', makeTransaction('cross-tab', timestamp) as Transaction);
+
+		await Promise.all([getDbA(), getDbB()]);
+
+		const kassentage = await dbA.getAll('kassentage');
+		const migrated = await dbA.get('transactions', 'cross-tab');
+		expect(kassentage).toHaveLength(1);
+		expect(kassentage[0]).toEqual(
+			expect.objectContaining({
+				startedAt: startOfDay(new Date(timestamp)),
+				endedAt: endOfDay(new Date(timestamp)),
+				status: 'closed',
+				source: 'legacy'
+			})
+		);
+		expect(migrated?.kassentagId).toBe(kassentage[0].id);
+		dbA.close();
+		dbB.close();
+	});
+
 	it('migrates transactions imported without an ID on a later getDb call', async () => {
 		const getDb = await loadFreshGetDb();
 		const db = await getDb();
