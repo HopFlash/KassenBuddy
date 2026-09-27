@@ -7,9 +7,10 @@
 
 	interface Props {
 		oncheckout: () => void;
+		kassentagActive: boolean;
 	}
 
-	let { oncheckout }: Props = $props();
+	let { oncheckout, kassentagActive }: Props = $props();
 
 	let confirmClear = $state(false);
 	let quickDiscounts = $state<Settings['quickDiscountPercents']>([5, 10, 20]);
@@ -151,11 +152,15 @@
 		<button
 			type="button"
 			class="w-full bg-success hover:bg-success/80 active:bg-success/60 text-white rounded-xl min-h-12 py-4 text-lg font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-			disabled={cart.items.length === 0}
+			disabled={cart.items.length === 0 || !kassentagActive}
 			onclick={oncheckout}
 		>
 			Bezahlen
 		</button>
+
+		{#if !kassentagActive}
+			<p class="text-center text-xs text-warning">Bitte zuerst Kassentag starten</p>
+		{/if}
 
 		{#if cart.items.length > 0}
 			<button
