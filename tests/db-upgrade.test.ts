@@ -132,6 +132,7 @@ it('upgrades a v1 database to v2 preserving products, settings and transactions'
 	await expect(db.get('transactions', assignedTransaction.id)).resolves.toEqual(
 		assignedTransaction
 	);
+	await expect(db.get('transactions', otherTransaction.id)).resolves.toEqual(otherTransaction);
 
 	// Existing rows are indexed during upgrade; null kassentagId rows are excluded.
 	await expect(db.countFromIndex('transactions', 'by-kassentag')).resolves.toBe(2);
