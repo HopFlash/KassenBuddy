@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import {
 		endKassentag,
@@ -25,6 +25,12 @@
 	let activeKassentag = $state<Kassentag | null>(null);
 	let confirmEndKassentag = $state(false);
 	let kassentagError = $state('');
+	let kassentagPending = $state(false);
+	let kassentagLoaded = $state(false);
+	let loadError = $state('');
+	let loading = $state(false);
+	let retryIncludesKassentag = true;
+	let confirmEndTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const quotaCounterClass = $derived.by(() => {
 		if (drinkQuotaCounter <= 0) return 'bg-danger/20 text-danger';
@@ -32,58 +38,99 @@
 		return 'bg-success/20 text-success';
 	});
 
-	onMount(async () => {
-		const [activeProducts, settings, kassentag] = await Promise.all([
-			getActiveProducts(),
-			getSettings(),
-			getActiveKassentag()
-		]);
-		products = activeProducts;
-		drinkQuotaCounter = settings.drinkQuotaCounter;
-		checkoutLayout = settings.checkoutLayout;
-		activeKassentag = kassentag;
+	async function loadPosData(includeKassentag: boolean) {
+		loading = true;
+		loadError = '';
+		try {
+			const [activeProducts, settings, kassentag] = await Promise.all([
+				getActiveProducts(),
+				getSettings(),
+				includeKassentag ? getActiveKassentag() : Promise.resolve(undefined)
+			]);
+			products = activeProducts;
+			drinkQuotaCounter = settings.drinkQuotaCounter;
+			checkoutLayout = settings.checkoutLayout;
+			if (kassentag !== undefined) {
+				activeKassentag = kassentag;
+				kassentagLoaded = true;
+			}
+		} catch (error) {
+			console.error('Kassendaten konnten nicht geladen werden', error);
+			retryIncludesKassentag = includeKassentag || !kassentagLoaded;
+			const detail = error instanceof Error ? error.message : String(error);
+			loadError = `Kassendaten konnten nicht geladen werden: ${detail}`;
+		} finally {
+			loading = false;
+		}
+	}
+
+	function retryLoad() {
+		if (loading) return;
+		void loadPosData(retryIncludesKassentag);
+	}
+
+	function clearConfirmEndTimer() {
+		if (confirmEndTimer !== null) {
+			clearTimeout(confirmEndTimer);
+			confirmEndTimer = null;
+		}
+	}
+
+	onMount(() => {
+		void loadPosData(true);
 	});
+
+	onDestroy(clearConfirmEndTimer);
 
 	function handleSelect(product: Product) {
 		cart.add(product);
 	}
 
 	async function handleStartKassentag() {
+		if (kassentagPending || !kassentagLoaded || activeKassentag) return;
+		kassentagPending = true;
 		kassentagError = '';
 		try {
 			activeKassentag = await startKassentag();
 		} catch (error) {
 			kassentagError =
 				error instanceof Error ? error.message : 'Kassentag konnte nicht gestartet werden';
+		} finally {
+			kassentagPending = false;
 		}
 	}
 
 	async function handleEndKassentag() {
-		if (!activeKassentag) return;
+		if (kassentagPending || !activeKassentag) return;
 		if (!confirmEndKassentag) {
 			confirmEndKassentag = true;
-			setTimeout(() => (confirmEndKassentag = false), 3000);
+			clearConfirmEndTimer();
+			confirmEndTimer = setTimeout(() => {
+				confirmEndKassentag = false;
+				confirmEndTimer = null;
+			}, 3000);
 			return;
 		}
 
+		kassentagPending = true;
 		kassentagError = '';
 		try {
 			await endKassentag(activeKassentag.id);
+			clearConfirmEndTimer();
 			activeKassentag = null;
 			confirmEndKassentag = false;
+			checkoutOpen = false;
 		} catch (error) {
 			kassentagError =
 				error instanceof Error ? error.message : 'Kassentag konnte nicht beendet werden';
+		} finally {
+			kassentagPending = false;
 		}
 	}
 
 	function handleCheckoutComplete() {
 		checkoutOpen = false;
-		Promise.all([getActiveProducts(), getSettings()]).then(([p, settings]) => {
-			products = p;
-			drinkQuotaCounter = settings.drinkQuotaCounter;
-			checkoutLayout = settings.checkoutLayout;
-		});
+		void loadPosData(false);
 	}
 </script>
 
@@ -103,16 +150,18 @@
 					</div>
 					<button
 						type="button"
-						class="bg-surface-light hover:bg-danger/20 text-danger rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+						class="bg-surface-light hover:bg-danger/20 text-danger rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 						onclick={handleEndKassentag}
+						disabled={kassentagPending}
 					>
 						{confirmEndKassentag ? 'Wirklich beenden?' : 'Kassentag beenden'}
 					</button>
 				{:else}
 					<button
 						type="button"
-						class="bg-accent hover:bg-accent-hover text-white rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+						class="bg-accent hover:bg-accent-hover text-white rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 						onclick={handleStartKassentag}
+						disabled={kassentagPending || !kassentagLoaded}
 					>
 						▶️ Kassentag starten
 					</button>
@@ -139,6 +188,22 @@
 			</div>
 		</div>
 
+		{#if loadError}
+			<div
+				class="mb-4 shrink-0 flex items-center justify-between gap-3 rounded-xl bg-danger/15 px-4 py-3 text-sm text-danger"
+			>
+				<span role="alert">{loadError}</span>
+				<button
+					type="button"
+					class="shrink-0 rounded-lg bg-danger/20 hover:bg-danger/30 px-3 py-2 font-semibold transition-colors disabled:opacity-40"
+					onclick={retryLoad}
+					disabled={loading}
+				>
+					Erneut laden
+				</button>
+			</div>
+		{/if}
+
 		<ProductGrid {products} onselect={handleSelect} />
 	</div>
 
@@ -153,12 +218,14 @@
 	bind:open={checkoutOpen}
 	onclose={() => (checkoutOpen = false)}
 	oncomplete={handleCheckoutComplete}
+	kassentagActive={!!activeKassentag}
 />
 {:else}
 <CheckoutModal
 	bind:open={checkoutOpen}
 	onclose={() => (checkoutOpen = false)}
 	oncomplete={handleCheckoutComplete}
+	kassentagActive={!!activeKassentag}
 />
 {/if}
 

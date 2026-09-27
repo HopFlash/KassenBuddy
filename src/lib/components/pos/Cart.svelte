@@ -15,9 +15,21 @@
 	let confirmClear = $state(false);
 	let quickDiscounts = $state<Settings['quickDiscountPercents']>([5, 10, 20]);
 
-	onMount(async () => {
-		const settings = await getSettings();
-		quickDiscounts = settings.quickDiscountPercents;
+	let settingsError = $state('');
+
+	async function loadQuickDiscounts() {
+		settingsError = '';
+		try {
+			const settings = await getSettings();
+			quickDiscounts = settings.quickDiscountPercents;
+		} catch (error) {
+			console.error('Schnellrabatte konnten nicht geladen werden', error);
+			settingsError = 'Schnellrabatte konnten nicht geladen werden – Standardwerte aktiv.';
+		}
+	}
+
+	onMount(() => {
+		void loadQuickDiscounts();
 	});
 
 	const overStockItems = $derived(
@@ -52,6 +64,14 @@
 	<!-- Cart items -->
 	<div class="rounded-lg p-2 bg-surface-lighter mb-2">
 		<p class="text-xs text-text-muted mb-2">Schnellrabatt</p>
+		{#if settingsError}
+			<div class="mb-2 flex items-center justify-between gap-2 rounded-lg bg-warning/10 px-2 py-1 text-xs text-warning">
+				<span role="alert">{settingsError}</span>
+				<button type="button" class="shrink-0 font-semibold underline" onclick={loadQuickDiscounts}>
+					Erneut versuchen
+				</button>
+			</div>
+		{/if}
 		<div class="flex flex-wrap gap-2">
 			{#each quickDiscounts as percent}
 				<button

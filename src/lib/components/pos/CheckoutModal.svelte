@@ -8,28 +8,49 @@
 		open: boolean;
 		onclose: () => void;
 		oncomplete: () => void;
+		kassentagActive: boolean;
 	}
 
-	let { open = $bindable(), onclose, oncomplete }: Props = $props();
+	let { open = $bindable(), onclose, oncomplete, kassentagActive }: Props = $props();
+
+	const INACTIVE_MESSAGE = 'Kein aktiver Kassentag – Zahlung nicht möglich. Bitte zuerst Kassentag starten.';
 
 	let paymentMethod = $state<'cash' | 'card'>('cash');
 	let numpadValue = $state('');
 	let result: { total: number; paid: number; change: number; method: 'cash' | 'card' } | null = $state(null);
 	let processing = $state(false);
+	let paymentError = $state('');
+
+	const errorMessage = $derived(kassentagActive ? paymentError : INACTIVE_MESSAGE);
+	const payDisabled = $derived(processing || !kassentagActive);
 
 	function reset() {
 		numpadValue = '';
 		result = null;
 		processing = false;
+		paymentError = '';
 		paymentMethod = 'cash';
 	}
 
 	async function handleConfirm(amount: number) {
+		if (processing) return;
+		if (!kassentagActive) {
+			paymentError = INACTIVE_MESSAGE;
+			return;
+		}
 		if (paymentMethod === 'cash' && amount < cart.total) return;
+		paymentError = '';
 		processing = true;
-		const tx = await cart.checkout(amount, paymentMethod);
-		result = { total: tx.total, paid: tx.amountPaid, change: tx.change, method: paymentMethod };
-		processing = false;
+		const method = paymentMethod;
+		try {
+			const tx = await cart.checkout(amount, method);
+			result = { total: tx.total, paid: tx.amountPaid, change: tx.change, method };
+		} catch (error) {
+			const detail = error instanceof Error ? error.message : String(error);
+			paymentError = `Zahlung fehlgeschlagen: ${detail}`;
+		} finally {
+			processing = false;
+		}
 	}
 
 	async function handleCardPay() {
@@ -77,6 +98,11 @@
 			</button>
 		</div>
 	{:else}
+		{#if errorMessage}
+			<p class="shrink-0 mb-1.5 rounded-lg bg-danger/15 px-3 py-2 text-sm font-semibold text-danger text-center" role="alert">
+				{errorMessage}
+			</p>
+		{/if}
 		<div class="flex flex-col h-full min-h-0 gap-1.5 sm:gap-2.5 {paymentMethod === 'cash' ? 'landscape:flex-row landscape:gap-3' : ''}">
 			<!-- Info panel: top in portrait, left side in landscape (cash) -->
 			<div class="flex flex-col gap-1.5 {paymentMethod === 'cash' ? 'landscape:w-[40%] landscape:shrink-0 landscape:min-h-0' : ''}">
@@ -134,9 +160,9 @@
 							</div>
 							<button
 								type="button"
-								class="w-full min-h-14 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-3 text-sm font-semibold transition-colors"
+								class="w-full min-h-14 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-3 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 								onclick={() => handleConfirm(cart.total)}
-								disabled={processing}
+								disabled={payDisabled}
 							>
 								Passend ({formatCurrency(cart.total)})
 							</button>
@@ -151,7 +177,7 @@
 								<button
 									type="button"
 									class="bg-success hover:bg-success/80 text-white rounded-lg min-h-10 py-2 text-sm font-semibold transition-colors disabled:opacity-40"
-									disabled={!numpadValue || parsedAmount === 0}
+									disabled={payDisabled || !numpadValue || parsedAmount === 0}
 									onclick={() => handleConfirm(parsedAmount)}
 								>
 									Bestätigen
@@ -188,9 +214,9 @@
 				<!-- Portrait: passend button -->
 				<button
 					type="button"
-					class="w-full shrink-0 min-h-9 sm:min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-1.5 sm:py-2.5 text-sm font-semibold transition-colors landscape:hidden"
+					class="w-full shrink-0 min-h-9 sm:min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-1.5 sm:py-2.5 text-sm font-semibold transition-colors landscape:hidden disabled:opacity-40 disabled:cursor-not-allowed"
 					onclick={() => handleConfirm(cart.total)}
-					disabled={processing}
+					disabled={payDisabled}
 				>
 					Passend bezahlt ({formatCurrency(cart.total)})
 				</button>
@@ -202,9 +228,9 @@
 				</div>
 				<button
 					type="button"
-					class="w-full shrink-0 min-h-12 bg-success hover:bg-success/80 text-white rounded-xl py-3 text-base sm:text-lg font-bold transition-colors"
+					class="w-full shrink-0 min-h-12 bg-success hover:bg-success/80 text-white rounded-xl py-3 text-base sm:text-lg font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 					onclick={handleCardPay}
-					disabled={processing}
+					disabled={payDisabled}
 				>
 					{processing ? 'Verarbeite…' : `Kartenzahlung bestätigen · ${formatCurrency(cart.total)}`}
 				</button>
