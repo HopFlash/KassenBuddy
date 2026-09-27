@@ -1,14 +1,21 @@
 import { openDB, type IDBPDatabase } from 'idb';
-import type { Product, Transaction, Settings } from '$lib/types';
+import type { Product, Transaction, Settings, Kassentag } from '$lib/types';
 import { DEFAULT_SETTINGS, CATEGORIES } from '$lib/types';
+import { generateId } from '$lib/utils/id';
+import { startOfDay, endOfDay } from '$lib/utils/currency';
 
 const DB_NAME = 'kasse-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export type KasseDB = IDBPDatabase<{
 	products: { key: string; value: Product; indexes: { 'by-category': string } };
-	transactions: { key: string; value: Transaction; indexes: { 'by-timestamp': number } };
+	transactions: {
+		key: string;
+		value: Transaction;
+		indexes: { 'by-timestamp': number; 'by-kassentag': string };
+	};
 	settings: { key: string; value: Settings };
+	kassentage: { key: string; value: Kassentag };
 }>;
 
 let dbInstance: KasseDB | null = null;
@@ -73,14 +80,23 @@ export async function getDb(): Promise<KasseDB> {
 
 	dbInitPromise = (async () => {
 		const db = (await openDB(DB_NAME, DB_VERSION, {
-			upgrade(db) {
-				const productStore = db.createObjectStore('products', { keyPath: 'id' });
-				productStore.createIndex('by-category', 'category');
+			upgrade(db, oldVersion, _newVersion, transaction) {
+				if (oldVersion < 1) {
+					const productStore = db.createObjectStore('products', { keyPath: 'id' });
+					productStore.createIndex('by-category', 'category');
 
-				const txStore = db.createObjectStore('transactions', { keyPath: 'id' });
-				txStore.createIndex('by-timestamp', 'timestamp');
+					const txStore = db.createObjectStore('transactions', { keyPath: 'id' });
+					txStore.createIndex('by-timestamp', 'timestamp');
 
-				db.createObjectStore('settings');
+					db.createObjectStore('settings');
+				}
+
+				if (oldVersion < 2) {
+					db.createObjectStore('kassentage', { keyPath: 'id' });
+
+					const txStore = transaction.objectStore('transactions');
+					txStore.createIndex('by-kassentag', 'kassentagId');
+				}
 			}
 		})) as unknown as KasseDB;
 
