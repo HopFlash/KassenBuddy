@@ -343,6 +343,103 @@ export async function deleteTransaction(id: string): Promise<void> {
 	await db.delete('transactions', id);
 }
 
+// --- Kassentage ---
+
+export async function getActiveKassentag(): Promise<Kassentag | null> {
+	const db = await getDb();
+	const all = await db.getAll('kassentage');
+	return all.find((kassentag) => kassentag.status === 'open') ?? null;
+}
+
+export async function startKassentag(): Promise<Kassentag> {
+	const db = await getDb();
+	const idbTx = db.transaction('kassentage', 'readwrite');
+	const store = idbTx.store;
+	const all = await store.getAll();
+	if (all.some((kassentag) => kassentag.status === 'open')) {
+		await idbTx.done;
+		throw new Error('Es läuft bereits ein Kassentag');
+	}
+
+	const kassentag: Kassentag = {
+		id: generateId(),
+		startedAt: Date.now(),
+		endedAt: null,
+		status: 'open',
+		source: 'manual'
+	};
+	await store.put(kassentag);
+	await idbTx.done;
+	return kassentag;
+}
+
+export async function endKassentag(id: string): Promise<void> {
+	const db = await getDb();
+	const kassentag = await db.get('kassentage', id);
+	if (!kassentag) {
+		throw new Error('Kassentag nicht gefunden');
+	}
+	await db.put('kassentage', { ...kassentag, endedAt: Date.now(), status: 'closed' });
+}
+
+export async function getAllKassentage(): Promise<Kassentag[]> {
+	const db = await getDb();
+	const kassentage = await db.getAll('kassentage');
+	return kassentage.sort((a, b) => b.startedAt - a.startedAt);
+}
+
+export async function updateKassentagTimes(
+	id: string,
+	startedAt: number,
+	endedAt: number | null
+): Promise<void> {
+	if (endedAt !== null && startedAt >= endedAt) {
+		throw new Error('Startzeit muss vor der Endzeit liegen');
+	}
+
+	const db = await getDb();
+	const idbTx = db.transaction('kassentage', 'readwrite');
+	const store = idbTx.store;
+	const kassentage = await store.getAll();
+	const kassentag = kassentage.find((candidate) => candidate.id === id);
+	if (!kassentag) {
+		await idbTx.done;
+		throw new Error('Kassentag nicht gefunden');
+	}
+
+	if (
+		endedAt === null &&
+		kassentage.some((candidate) => candidate.id !== id && candidate.status === 'open')
+	) {
+		await idbTx.done;
+		throw new Error('Es läuft bereits ein anderer Kassentag');
+	}
+
+	await store.put({
+		...kassentag,
+		startedAt,
+		endedAt,
+		status: endedAt === null ? 'open' : 'closed'
+	});
+	await idbTx.done;
+}
+
+export async function getTransactionsByKassentag(id: string): Promise<Transaction[]> {
+	const db = await getDb();
+	const transactions = await db.getAllFromIndex('transactions', 'by-kassentag', id);
+	return transactions.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export async function findKassentagForTimestamp(timestamp: number): Promise<Kassentag | null> {
+	const kassentage = await getAllKassentage();
+	return (
+		kassentage.find((kassentag) => {
+			const end = kassentag.endedAt ?? Number.POSITIVE_INFINITY;
+			return timestamp >= kassentag.startedAt && timestamp <= end;
+		}) ?? null
+	);
+}
+
 // --- Settings ---
 
 export async function getSettings(): Promise<Settings> {
