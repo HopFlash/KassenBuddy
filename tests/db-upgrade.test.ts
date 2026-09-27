@@ -73,7 +73,7 @@ it('creates all stores and indexes on a fresh install', async () => {
 	]);
 });
 
-it('upgrades a v1 database to v2 preserving products, settings and transactions', async () => {
+it('upgrades a v1 database to v2 preserving data and migrating legacy transactions', async () => {
 	const product = {
 		id: 'product-1',
 		name: 'Test product',
@@ -128,19 +128,29 @@ it('upgrades a v1 database to v2 preserving products, settings and transactions'
 	await expect(db.getAll('products')).resolves.toEqual([product]);
 	await expect(db.get('settings', 'main')).resolves.toEqual(settings);
 	await expect(db.count('transactions')).resolves.toBe(3);
-	await expect(db.get('transactions', legacyTransaction.id)).resolves.toEqual(legacyTransaction);
+	await expect(db.get('transactions', legacyTransaction.id)).resolves.toEqual(
+		expect.objectContaining({
+			...legacyTransaction,
+			kassentagId: expect.any(String)
+		})
+	);
 	await expect(db.get('transactions', assignedTransaction.id)).resolves.toEqual(
 		assignedTransaction
 	);
 	await expect(db.get('transactions', otherTransaction.id)).resolves.toEqual(otherTransaction);
 
-	// Existing rows are indexed during upgrade; null kassentagId rows are excluded.
-	await expect(db.countFromIndex('transactions', 'by-kassentag')).resolves.toBe(2);
+	await expect(db.countFromIndex('transactions', 'by-kassentag')).resolves.toBe(3);
 	await expect(db.getAllFromIndex('transactions', 'by-kassentag', 'kt-1')).resolves.toEqual([
 		assignedTransaction
 	]);
 	await expect(db.getAllKeysFromIndex('transactions', 'by-kassentag', 'kt-2')).resolves.toEqual([
 		otherTransaction.id
 	]);
-	await expect(db.count('kassentage')).resolves.toBe(0);
+	await expect(db.getAll('kassentage')).resolves.toEqual([
+		expect.objectContaining({
+			id: expect.any(String),
+			status: 'closed',
+			source: 'legacy'
+		})
+	]);
 });

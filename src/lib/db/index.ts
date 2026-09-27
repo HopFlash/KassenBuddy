@@ -20,6 +20,7 @@ export type KasseDB = IDBPDatabase<{
 
 let dbInstance: KasseDB | null = null;
 let dbInitPromise: Promise<KasseDB> | null = null;
+let migrationPromise: Promise<void> | null = null;
 
 function normalizeQuickDiscountPercents(value: unknown): [number, number, number] {
 	if (Array.isArray(value) && value.length >= 3) {
@@ -74,7 +75,89 @@ function normalizeSettings(settings: Partial<Settings> | null | undefined): Sett
 	};
 }
 
+function localDayKey(timestamp: number): string {
+	const date = new Date(timestamp);
+	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+async function runLegacyMigration(db: KasseDB): Promise<void> {
+	const totalCount = await db.count('transactions');
+	if (totalCount === 0) return;
+
+	const assignedCount = await db.countFromIndex('transactions', 'by-kassentag');
+	if (assignedCount >= totalCount) return;
+
+	const allTransactions = await db.getAll('transactions');
+	const unassigned = allTransactions.filter((transaction) => transaction.kassentagId == null);
+	if (unassigned.length === 0) return;
+
+	const transactionsByDay = new Map<string, Transaction[]>();
+	for (const transaction of unassigned) {
+		const key = localDayKey(transaction.timestamp);
+		const group = transactionsByDay.get(key);
+		if (group) group.push(transaction);
+		else transactionsByDay.set(key, [transaction]);
+	}
+
+	const existingKassentage = await db.getAll('kassentage');
+	const idbTransaction = db.transaction(['transactions', 'kassentage'], 'readwrite');
+	const transactionStore = idbTransaction.objectStore('transactions');
+	const kassentagStore = idbTransaction.objectStore('kassentage');
+	const writes: Promise<unknown>[] = [];
+
+	for (const dayTransactions of transactionsByDay.values()) {
+		const reference = new Date(dayTransactions[0].timestamp);
+		const startedAt = startOfDay(reference);
+		const endedAt = endOfDay(reference);
+
+		let kassentag = existingKassentage.find(
+			(candidate) =>
+				candidate.source === 'legacy' &&
+				candidate.startedAt === startedAt &&
+				candidate.endedAt === endedAt
+		);
+		if (!kassentag) {
+			kassentag = {
+				id: generateId(),
+				startedAt,
+				endedAt,
+				status: 'closed',
+				source: 'legacy'
+			};
+			existingKassentage.push(kassentag);
+			writes.push(kassentagStore.put(kassentag));
+		}
+
+		for (const transaction of dayTransactions) {
+			writes.push(transactionStore.put({ ...transaction, kassentagId: kassentag.id }));
+		}
+	}
+
+	await Promise.all(writes);
+	await idbTransaction.done;
+}
+
+async function migrateLegacyTransactionsIfNeeded(db: KasseDB): Promise<void> {
+	if (migrationPromise) {
+		await migrationPromise;
+		return;
+	}
+
+	migrationPromise = runLegacyMigration(db);
+	try {
+		await migrationPromise;
+	} finally {
+		migrationPromise = null;
+	}
+}
+
 export async function getDb(): Promise<KasseDB> {
+	const db = await ensureDb();
+	await migrateLegacyTransactionsIfNeeded(db);
+	return db;
+}
+
+async function ensureDb(): Promise<KasseDB> {
 	if (dbInstance) return dbInstance;
 	if (dbInitPromise) return dbInitPromise;
 
