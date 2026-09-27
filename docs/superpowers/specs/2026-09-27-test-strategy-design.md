@@ -2,9 +2,9 @@
 
 **Status:** Genehmigt (Design)
 **Datum:** 2026-09-27
-**Umsetzungs-Gate:** Die Umsetzung beginnt erst, nachdem `feature/kassentag` in `main` gemerged
-wurde. Der dann aktuelle Stand von `main` ist die alleinige Grundlage für den
-Implementierungsplan und alle Änderungen.
+**Umsetzungs-Gate:** Der Implementierungsplan wird vorab erstellt, aber erst ausgeführt, nachdem
+`feature/kassentag` in `main` gemerged wurde. Vor dem ersten Umsetzungsschritt wird der Plan
+gegen den dann aktuellen Stand von `main` geprüft und bei Bedarf angepasst.
 
 ## Ausgangslage
 
@@ -223,9 +223,9 @@ Der erste Ausbau ist erfolgreich, wenn:
 - Pull Requests automatisch Typprüfung, Unit-/Integrationstests und E2E-Smoke-Tests durchlaufen,
 - die gesamte schnelle Suite kurz genug für regelmäßige lokale Ausführung bleibt.
 
-## Voraussetzung für den Implementierungsplan
+## Voraussetzung für die Ausführung
 
 Vor der Umsetzung wird geprüft, dass `feature/kassentag` vollständig in `main` enthalten ist.
-Anschließend werden Dateipfade, APIs, bestehende Tests und Abhängigkeiten erneut vom aktuellen
-`main` gelesen. Erst danach wird der konkrete, dateiweise Implementierungsplan erstellt; dadurch
-vermeidet der Plan Annahmen über noch nicht gemergten oder zwischenzeitlich geänderten Code.
+Anschließend werden die im vorab erstellten Implementierungsplan genannten Dateipfade, APIs,
+bestehenden Tests und Abhängigkeiten erneut mit dem aktuellen `main` abgeglichen. Notwendige
+Plananpassungen werden vorgenommen, bevor Produktions- oder Testcode geändert wird.
