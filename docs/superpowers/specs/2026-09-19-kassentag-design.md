@@ -88,9 +88,11 @@ automatisch nachträglich zugeordnet:
 - `src/lib/components/pos/Cart.svelte`: Ist kein Kassentag aktiv, wird der „Bezahlen“-Button
   deaktiviert mit Hinweistext „Bitte zuerst Kassentag starten“. Der Warenkorb selbst bleibt
   nutzbar (Produkte hinzufügen/entfernen funktioniert weiterhin).
-- `src/lib/stores/cart.svelte.ts`: `checkout()` liest den aktiven Kassentag und schreibt dessen
-  `id` als `kassentagId` in die `Transaction` (über die bereits gebündelte
-  `commitCheckout()`-Transaktion aus dem vorherigen Fix).
+- `src/lib/stores/cart.svelte.ts` / `commitCheckout()`: Der aktive Kassentag wird innerhalb
+  derselben IndexedDB-Transaktion (Scope inkl. `kassentage`) gelesen, die Transaktion, Bestand
+  und Kontingent schreibt; dessen `id` wird als `kassentagId` gespeichert. Ist keiner offen
+  (z. B. in einem anderen Tab beendet), wird der Checkout atomar mit „Kein aktiver Kassentag –
+  Zahlung nicht möglich. Bitte zuerst Kassentag starten.“ abgelehnt – es wird nichts geschrieben.
 
 ### Admin-Bereich
 

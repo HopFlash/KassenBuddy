@@ -1,18 +1,26 @@
 import { openDB, type IDBPDatabase } from 'idb';
-import type { Product, Transaction, Settings } from '$lib/types';
+import type { Product, Transaction, Settings, Kassentag } from '$lib/types';
 import { DEFAULT_SETTINGS, CATEGORIES } from '$lib/types';
+import { generateId } from '$lib/utils/id';
+import { startOfDay, endOfDay } from '$lib/utils/currency';
 
 const DB_NAME = 'kasse-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export type KasseDB = IDBPDatabase<{
 	products: { key: string; value: Product; indexes: { 'by-category': string } };
-	transactions: { key: string; value: Transaction; indexes: { 'by-timestamp': number } };
+	transactions: {
+		key: string;
+		value: Transaction;
+		indexes: { 'by-timestamp': number; 'by-kassentag': string };
+	};
 	settings: { key: string; value: Settings };
+	kassentage: { key: string; value: Kassentag };
 }>;
 
 let dbInstance: KasseDB | null = null;
 let dbInitPromise: Promise<KasseDB> | null = null;
+let migrationPromise: Promise<void> | null = null;
 
 function normalizeQuickDiscountPercents(value: unknown): [number, number, number] {
 	if (Array.isArray(value) && value.length >= 3) {
@@ -67,20 +75,119 @@ function normalizeSettings(settings: Partial<Settings> | null | undefined): Sett
 	};
 }
 
+function localDayKey(timestamp: number): string {
+	const date = new Date(timestamp);
+	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+async function runLegacyMigration(db: KasseDB): Promise<void> {
+	const totalCount = await db.count('transactions');
+	if (totalCount === 0) return;
+
+	const assignedCount = await db.countFromIndex('transactions', 'by-kassentag');
+	if (assignedCount >= totalCount) return;
+
+	// The counts above are only a cheap preflight. Other tabs/module instances may migrate
+	// concurrently, so the actual create/reuse decision re-reads both stores inside one
+	// readwrite transaction; IndexedDB serializes overlapping readwrite transactions.
+	const idbTransaction = db.transaction(['transactions', 'kassentage'], 'readwrite');
+	const transactionStore = idbTransaction.objectStore('transactions');
+	const kassentagStore = idbTransaction.objectStore('kassentage');
+
+	const [allTransactions, existingKassentage] = await Promise.all([
+		transactionStore.getAll(),
+		kassentagStore.getAll()
+	]);
+	const unassigned = allTransactions.filter((transaction) => transaction.kassentagId == null);
+	if (unassigned.length === 0) {
+		await idbTransaction.done;
+		return;
+	}
+
+	const transactionsByDay = new Map<string, Transaction[]>();
+	for (const transaction of unassigned) {
+		const key = localDayKey(transaction.timestamp);
+		const group = transactionsByDay.get(key);
+		if (group) group.push(transaction);
+		else transactionsByDay.set(key, [transaction]);
+	}
+
+	const writes: Promise<unknown>[] = [];
+	for (const dayTransactions of transactionsByDay.values()) {
+		const reference = new Date(dayTransactions[0].timestamp);
+		const startedAt = startOfDay(reference);
+		const endedAt = endOfDay(reference);
+
+		let kassentag = existingKassentage.find(
+			(candidate) =>
+				candidate.source === 'legacy' &&
+				candidate.startedAt === startedAt &&
+				candidate.endedAt === endedAt
+		);
+		if (!kassentag) {
+			kassentag = {
+				id: generateId(),
+				startedAt,
+				endedAt,
+				status: 'closed',
+				source: 'legacy'
+			};
+			existingKassentage.push(kassentag);
+			writes.push(kassentagStore.put(kassentag));
+		}
+
+		for (const transaction of dayTransactions) {
+			writes.push(transactionStore.put({ ...transaction, kassentagId: kassentag.id }));
+		}
+	}
+
+	await Promise.all(writes);
+	await idbTransaction.done;
+}
+
+async function migrateLegacyTransactionsIfNeeded(db: KasseDB): Promise<void> {
+	if (migrationPromise) {
+		await migrationPromise;
+		return;
+	}
+
+	migrationPromise = runLegacyMigration(db);
+	try {
+		await migrationPromise;
+	} finally {
+		migrationPromise = null;
+	}
+}
+
 export async function getDb(): Promise<KasseDB> {
+	const db = await ensureDb();
+	await migrateLegacyTransactionsIfNeeded(db);
+	return db;
+}
+
+async function ensureDb(): Promise<KasseDB> {
 	if (dbInstance) return dbInstance;
 	if (dbInitPromise) return dbInitPromise;
 
 	dbInitPromise = (async () => {
 		const db = (await openDB(DB_NAME, DB_VERSION, {
-			upgrade(db) {
-				const productStore = db.createObjectStore('products', { keyPath: 'id' });
-				productStore.createIndex('by-category', 'category');
+			upgrade(db, oldVersion, _newVersion, transaction) {
+				if (oldVersion < 1) {
+					const productStore = db.createObjectStore('products', { keyPath: 'id' });
+					productStore.createIndex('by-category', 'category');
 
-				const txStore = db.createObjectStore('transactions', { keyPath: 'id' });
-				txStore.createIndex('by-timestamp', 'timestamp');
+					const txStore = db.createObjectStore('transactions', { keyPath: 'id' });
+					txStore.createIndex('by-timestamp', 'timestamp');
 
-				db.createObjectStore('settings');
+					db.createObjectStore('settings');
+				}
+
+				if (oldVersion < 2) {
+					db.createObjectStore('kassentage', { keyPath: 'id' });
+
+					const txStore = transaction.objectStore('transactions');
+					txStore.createIndex('by-kassentag', 'kassentagId');
+				}
 			}
 		})) as unknown as KasseDB;
 
@@ -191,19 +298,34 @@ export async function saveTransaction(tx: Transaction): Promise<void> {
 	await db.put('transactions', tx);
 }
 
+export const NO_ACTIVE_KASSENTAG_ERROR =
+	'Kein aktiver Kassentag – Zahlung nicht möglich. Bitte zuerst Kassentag starten.';
+
 /**
  * Persists a completed checkout (transaction + settings + stock decrements)
  * in a single IndexedDB transaction so the writes commit atomically and
  * without the round-trip latency of multiple sequential awaits.
+ *
+ * The active Kassentag is resolved inside the same transaction: if none is
+ * open (e.g. ended in another tab), nothing is written and the checkout is
+ * rejected. The stored transaction always carries the authoritative ID.
  */
 export async function commitCheckout(
-	tx: Transaction,
+	checkout: Omit<Transaction, 'kassentagId'>,
 	settingsUpdate: Settings | null,
 	stockUpdates: { productId: string; quantity: number }[]
-): Promise<void> {
+): Promise<Transaction> {
 	const db = await getDb();
-	const idbTx = db.transaction(['transactions', 'settings', 'products'], 'readwrite');
+	const idbTx = db.transaction(['transactions', 'settings', 'products', 'kassentage'], 'readwrite');
 
+	const kassentage = await idbTx.objectStore('kassentage').getAll();
+	const active = kassentage.find((kassentag) => kassentag.status === 'open');
+	if (!active) {
+		await idbTx.done;
+		throw new Error(NO_ACTIVE_KASSENTAG_ERROR);
+	}
+
+	const tx: Transaction = { ...checkout, kassentagId: active.id };
 	const writes: Promise<unknown>[] = [idbTx.objectStore('transactions').put(tx)];
 
 	if (settingsUpdate) {
@@ -224,6 +346,7 @@ export async function commitCheckout(
 
 	await Promise.all(writes);
 	await idbTx.done;
+	return tx;
 }
 
 export async function deleteAllTransactions(): Promise<void> {
@@ -234,6 +357,119 @@ export async function deleteAllTransactions(): Promise<void> {
 export async function deleteTransaction(id: string): Promise<void> {
 	const db = await getDb();
 	await db.delete('transactions', id);
+}
+
+// --- Kassentage ---
+
+export async function getActiveKassentag(): Promise<Kassentag | null> {
+	const db = await getDb();
+	const all = await db.getAll('kassentage');
+	return all.find((kassentag) => kassentag.status === 'open') ?? null;
+}
+
+export async function startKassentag(): Promise<Kassentag> {
+	const db = await getDb();
+	const idbTx = db.transaction('kassentage', 'readwrite');
+	const store = idbTx.store;
+	const all = await store.getAll();
+	if (all.some((kassentag) => kassentag.status === 'open')) {
+		await idbTx.done;
+		throw new Error('Es läuft bereits ein Kassentag');
+	}
+
+	const kassentag: Kassentag = {
+		id: generateId(),
+		startedAt: Date.now(),
+		endedAt: null,
+		status: 'open',
+		source: 'manual'
+	};
+	await store.put(kassentag);
+	await idbTx.done;
+	return kassentag;
+}
+
+export async function endKassentag(id: string): Promise<void> {
+	const db = await getDb();
+	const idbTx = db.transaction('kassentage', 'readwrite');
+	const store = idbTx.store;
+	const kassentag = await store.get(id);
+	if (!kassentag) {
+		await idbTx.done;
+		throw new Error('Kassentag nicht gefunden');
+	}
+	const endedAt = Date.now();
+	if (endedAt <= kassentag.startedAt) {
+		await idbTx.done;
+		throw new Error('Startzeit muss vor der Endzeit liegen');
+	}
+	await store.put({ ...kassentag, endedAt, status: 'closed' });
+	await idbTx.done;
+}
+
+export async function getAllKassentage(): Promise<Kassentag[]> {
+	const db = await getDb();
+	const kassentage = await db.getAll('kassentage');
+	return kassentage.sort((a, b) => b.startedAt - a.startedAt);
+}
+
+function isValidDateTimestamp(value: number): boolean {
+	return Number.isFinite(value) && !Number.isNaN(new Date(value).getTime());
+}
+
+export async function updateKassentagTimes(
+	id: string,
+	startedAt: number,
+	endedAt: number | null
+): Promise<void> {
+	if (!isValidDateTimestamp(startedAt) || (endedAt !== null && !isValidDateTimestamp(endedAt))) {
+		throw new Error('Zeitstempel müssen gültige Zeitangaben sein');
+	}
+	if (endedAt !== null && startedAt >= endedAt) {
+		throw new Error('Startzeit muss vor der Endzeit liegen');
+	}
+
+	const db = await getDb();
+	const idbTx = db.transaction('kassentage', 'readwrite');
+	const store = idbTx.store;
+	const kassentage = await store.getAll();
+	const kassentag = kassentage.find((candidate) => candidate.id === id);
+	if (!kassentag) {
+		await idbTx.done;
+		throw new Error('Kassentag nicht gefunden');
+	}
+
+	if (
+		endedAt === null &&
+		kassentage.some((candidate) => candidate.id !== id && candidate.status === 'open')
+	) {
+		await idbTx.done;
+		throw new Error('Es läuft bereits ein anderer Kassentag');
+	}
+
+	await store.put({
+		...kassentag,
+		startedAt,
+		endedAt,
+		status: endedAt === null ? 'open' : 'closed'
+	});
+	await idbTx.done;
+}
+
+export async function getTransactionsByKassentag(id: string): Promise<Transaction[]> {
+	const db = await getDb();
+	const transactions = await db.getAllFromIndex('transactions', 'by-kassentag', id);
+	return transactions.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export async function findKassentagForTimestamp(timestamp: number): Promise<Kassentag | null> {
+	const kassentage = await getAllKassentage();
+	return (
+		kassentage.find((kassentag) => {
+			const end = kassentag.endedAt ?? Number.POSITIVE_INFINITY;
+			return timestamp >= kassentag.startedAt && timestamp <= end;
+		}) ?? null
+	);
 }
 
 // --- Settings ---

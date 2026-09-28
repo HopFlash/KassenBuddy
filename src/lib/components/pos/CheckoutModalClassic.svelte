@@ -8,28 +8,49 @@
 		open: boolean;
 		onclose: () => void;
 		oncomplete: () => void;
+		kassentagActive: boolean;
 	}
 
-	let { open = $bindable(), onclose, oncomplete }: Props = $props();
+	let { open = $bindable(), onclose, oncomplete, kassentagActive }: Props = $props();
+
+	const INACTIVE_MESSAGE = 'Kein aktiver Kassentag – Zahlung nicht möglich. Bitte zuerst Kassentag starten.';
 
 	let paymentMethod = $state<'cash' | 'card'>('cash');
 	let numpadValue = $state('');
 	let result: { total: number; paid: number; change: number; method: 'cash' | 'card' } | null = $state(null);
 	let processing = $state(false);
+	let paymentError = $state('');
+
+	const errorMessage = $derived(kassentagActive ? paymentError : INACTIVE_MESSAGE);
+	const payDisabled = $derived(processing || !kassentagActive);
 
 	function reset() {
 		numpadValue = '';
 		result = null;
 		processing = false;
+		paymentError = '';
 		paymentMethod = 'cash';
 	}
 
 	async function handleConfirm(amount: number) {
+		if (processing) return;
+		if (!kassentagActive) {
+			paymentError = INACTIVE_MESSAGE;
+			return;
+		}
 		if (paymentMethod === 'cash' && amount < cart.total) return;
+		paymentError = '';
 		processing = true;
-		const tx = await cart.checkout(amount, paymentMethod);
-		result = { total: tx.total, paid: tx.amountPaid, change: tx.change, method: paymentMethod };
-		processing = false;
+		const method = paymentMethod;
+		try {
+			const tx = await cart.checkout(amount, method);
+			result = { total: tx.total, paid: tx.amountPaid, change: tx.change, method };
+		} catch (error) {
+			const detail = error instanceof Error ? error.message : String(error);
+			paymentError = `Zahlung fehlgeschlagen: ${detail}`;
+		} finally {
+			processing = false;
+		}
 	}
 
 	async function handleCardPay() {
@@ -77,6 +98,11 @@
 			</button>
 		</div>
 	{:else}
+		{#if errorMessage}
+			<p class="shrink-0 mb-1.5 rounded-lg bg-danger/15 px-3 py-2 text-sm font-semibold text-danger text-center" role="alert">
+				{errorMessage}
+			</p>
+		{/if}
 		<div class="flex flex-col h-full min-h-0 gap-1.5 sm:gap-2.5">
 			<!-- Amount -->
 			<div class="text-center shrink-0">
@@ -126,9 +152,9 @@
 
 				<button
 					type="button"
-					class="w-full shrink-0 min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-2.5 text-sm font-semibold transition-colors"
+					class="w-full shrink-0 min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 					onclick={() => handleConfirm(cart.total)}
-					disabled={processing}
+					disabled={payDisabled}
 				>
 					Passend bezahlt ({formatCurrency(cart.total)})
 				</button>
@@ -140,9 +166,9 @@
 				</div>
 				<button
 					type="button"
-					class="w-full shrink-0 min-h-12 bg-success hover:bg-success/80 text-white rounded-xl py-3 text-base sm:text-lg font-bold transition-colors"
+					class="w-full shrink-0 min-h-12 bg-success hover:bg-success/80 text-white rounded-xl py-3 text-base sm:text-lg font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 					onclick={handleCardPay}
-					disabled={processing}
+					disabled={payDisabled}
 				>
 					{processing ? 'Verarbeite…' : `Kartenzahlung bestätigen · ${formatCurrency(cart.total)}`}
 				</button>

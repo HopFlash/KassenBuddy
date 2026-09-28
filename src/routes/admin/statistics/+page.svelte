@@ -1,18 +1,32 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getAllTransactions, getTransactionsByDateRange, deleteAllTransactions, saveTransaction, deleteTransaction, getSettings } from '$lib/db';
-	import { formatCurrency, formatDate, formatDateShort, startOfDay, endOfDay } from '$lib/utils/currency';
+	import {
+		getAllTransactions,
+		getAllKassentage,
+		getTransactionsByKassentag,
+		findKassentagForTimestamp,
+		deleteAllTransactions,
+		saveTransaction,
+		deleteTransaction,
+		getSettings
+	} from '$lib/db';
+	import { formatCurrency, formatDate } from '$lib/utils/currency';
+	import { formatKassentagRange } from '$lib/utils/kassentag';
 	import { exportTransactionsToXlsx, exportProductSummaryToXlsx, exportTransactionsToJson, parseTransactionsJson } from '$lib/utils/export';
-	import type { Transaction, TransactionItem } from '$lib/types';
+	import type { Transaction, TransactionItem, Kassentag } from '$lib/types';
 	import { generateId } from '$lib/utils/id';
 	import StatCard from '$lib/components/shared/StatCard.svelte';
 
 	let transactions = $state<Transaction[]>([]);
 	let shopName = $state('KassenBuddy');
-	let dateFrom = $state(new Date().toISOString().slice(0, 10));
-	let dateTo = $state(new Date().toISOString().slice(0, 10));
+	let kassentageList = $state<Kassentag[]>([]);
+	let selectedKassentagId = $state('all');
 	let filterActive = $state(false);
 	let confirmClear = $state(false);
+
+	const selectedKassentag = $derived(
+		selectedKassentagId === 'all' ? null : (kassentageList.find((k) => k.id === selectedKassentagId) ?? null)
+	);
 
 	const revenueTotals = $derived.by(() => {
 		let total = 0;
@@ -46,27 +60,32 @@
 	onMount(async () => {
 		const settings = await getSettings();
 		shopName = settings.shopName;
+		kassentageList = await getAllKassentage();
 		await loadAll();
 	});
 
 	async function loadAll() {
 		filterActive = false;
+		selectedKassentagId = 'all';
 		transactions = await getAllTransactions();
 	}
 
-	async function applyFilter() {
-		const from = startOfDay(new Date(dateFrom));
-		const to = endOfDay(new Date(dateTo));
-		transactions = await getTransactionsByDateRange(from, to);
-		filterActive = true;
+	async function handleKassentagChange() {
+		if (selectedKassentagId === 'all') {
+			filterActive = false;
+			transactions = await getAllTransactions();
+		} else {
+			filterActive = true;
+			transactions = await getTransactionsByKassentag(selectedKassentagId);
+		}
 	}
 
 	function handleExport() {
-		exportTransactionsToXlsx(transactions, shopName);
+		exportTransactionsToXlsx(transactions, shopName, selectedKassentag);
 	}
 
 	function handleProductExport() {
-		exportProductSummaryToXlsx(transactions, shopName);
+		exportProductSummaryToXlsx(transactions, shopName, selectedKassentag);
 	}
 
 	async function handleClearAll() {
@@ -85,7 +104,7 @@
 	let fileInput: HTMLInputElement;
 
 	function handleJsonExport() {
-		exportTransactionsToJson(transactions, shopName);
+		exportTransactionsToJson(transactions, shopName, selectedKassentag);
 	}
 
 	async function handleJsonImport(e: Event) {
@@ -121,10 +140,9 @@
 	}
 
 	async function reloadCurrent() {
-		if (filterActive) {
-			const from = startOfDay(new Date(dateFrom));
-			const to = endOfDay(new Date(dateTo));
-			transactions = await getTransactionsByDateRange(from, to);
+		kassentageList = await getAllKassentage();
+		if (filterActive && selectedKassentagId !== 'all') {
+			transactions = await getTransactionsByKassentag(selectedKassentagId);
 		} else {
 			await loadAll();
 		}
@@ -201,14 +219,17 @@
 				quantity: i.quantity,
 				subtotal: Math.round(i.price * i.quantity * 100) / 100
 			}));
+			const timestamp = new Date(editTimestamp).getTime();
+			const kassentag = await findKassentagForTimestamp(timestamp);
 			const tx: Transaction = {
 				id: editTxId,
-				timestamp: new Date(editTimestamp).getTime(),
+				timestamp,
 				items,
 				total: editTotal,
 				amountPaid: editAmountPaid,
 				change: editChange,
-				paymentMethod: editPaymentMethod
+				paymentMethod: editPaymentMethod,
+				kassentagId: kassentag?.id ?? null
 			};
 			await saveTransaction(tx);
 			await reloadCurrent();
@@ -300,39 +321,19 @@
 <!-- Filter -->
 <div class="bg-surface-light rounded-xl p-4 mb-6 flex items-end gap-4 flex-wrap">
 	<div>
-		<label for="from" class="block text-sm text-text-muted mb-1">Von</label>
-		<input
-			id="from"
-			type="date"
-			class="bg-surface-lighter rounded-lg px-4 py-2 text-text outline-none focus:ring-2 focus:ring-accent"
-			bind:value={dateFrom}
-		/>
-	</div>
-	<div>
-		<label for="to" class="block text-sm text-text-muted mb-1">Bis</label>
-		<input
-			id="to"
-			type="date"
-			class="bg-surface-lighter rounded-lg px-4 py-2 text-text outline-none focus:ring-2 focus:ring-accent"
-			bind:value={dateTo}
-		/>
-	</div>
-	<button
-		type="button"
-		class="bg-accent hover:bg-accent-hover text-white rounded-lg px-6 py-2 font-semibold transition-colors"
-		onclick={applyFilter}
-	>
-		Filtern
-	</button>
-	{#if filterActive}
-		<button
-			type="button"
-			class="bg-surface-lighter hover:bg-surface-lighter/80 rounded-lg px-6 py-2 font-semibold transition-colors text-text-muted"
-			onclick={loadAll}
+		<label for="kassentag-filter" class="block text-sm text-text-muted mb-1">Kassentag</label>
+		<select
+			id="kassentag-filter"
+			class="bg-surface-lighter rounded-lg px-4 py-2 text-text outline-none focus:ring-2 focus:ring-accent min-w-64"
+			bind:value={selectedKassentagId}
+			onchange={handleKassentagChange}
 		>
-			Filter zurücksetzen
-		</button>
-	{/if}
+			<option value="all">Alle Kassentage</option>
+			{#each kassentageList as k}
+				<option value={k.id}>{formatKassentagRange(k)}{k.status === 'open' ? ' 🟢' : ''}</option>
+			{/each}
+		</select>
+	</div>
 </div>
 
 <!-- Summary cards -->

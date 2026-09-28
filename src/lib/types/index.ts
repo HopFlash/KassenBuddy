@@ -24,6 +24,14 @@ export interface TransactionItem {
 	subtotal: number;
 }
 
+export interface Kassentag {
+	id: string;
+	startedAt: number;
+	endedAt: number | null;
+	status: 'open' | 'closed';
+	source: 'manual' | 'legacy';
+}
+
 export interface Transaction {
 	id: string;
 	timestamp: number;
@@ -32,6 +40,7 @@ export interface Transaction {
 	amountPaid: number;
 	change: number;
 	paymentMethod: 'cash' | 'card';
+	kassentagId: string | null;
 }
 
 export interface Settings {

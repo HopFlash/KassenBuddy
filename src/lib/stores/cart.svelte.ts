@@ -177,7 +177,7 @@ export const cart = {
 			subtotal: this.getItemTotal(item)
 		}));
 
-		const tx: Transaction = {
+		const checkout: Omit<Transaction, 'kassentagId'> = {
 			id: generateId(),
 			timestamp: Date.now(),
 			items: txItems,
@@ -201,7 +201,7 @@ export const cart = {
 			.filter((item) => item.product.stock !== null)
 			.map((item) => ({ productId: item.product.id, quantity: item.quantity }));
 
-		await commitCheckout(tx, settingsUpdate, stockUpdates);
+		const tx = await commitCheckout(checkout, settingsUpdate, stockUpdates);
 
 		this.clear();
 		return tx;
