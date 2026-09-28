@@ -1,8 +1,12 @@
 import * as XLSX from 'xlsx';
-import type { Transaction } from '$lib/types';
+import type { Kassentag, Transaction } from '$lib/types';
 import { formatDate } from '$lib/utils/currency';
 
-export function exportTransactionsToXlsx(transactions: Transaction[], shopName: string): void {
+export function exportTransactionsToXlsx(
+	transactions: Transaction[],
+	shopName: string,
+	kassentag?: Kassentag | null
+): void {
 	const wb = XLSX.utils.book_new();
 
 	// Sheet 1: All transactions
@@ -61,7 +65,11 @@ export function exportTransactionsToXlsx(transactions: Transaction[], shopName: 
 	XLSX.writeFile(wb, `${shopName}_Verkäufe_${dateStr}.xlsx`);
 }
 
-export function exportProductSummaryToXlsx(transactions: Transaction[], shopName: string): void {
+export function exportProductSummaryToXlsx(
+	transactions: Transaction[],
+	shopName: string,
+	kassentag?: Kassentag | null
+): void {
 	const wb = XLSX.utils.book_new();
 
 	// --- Sheet 1: Produktübersicht (sorted by quantity desc) ---
@@ -147,7 +155,11 @@ export function exportProductSummaryToXlsx(transactions: Transaction[], shopName
 	XLSX.writeFile(wb, `${shopName}_Produktübersicht_${dateStr}.xlsx`);
 }
 
-export function exportTransactionsToJson(transactions: Transaction[], shopName: string): void {
+export function exportTransactionsToJson(
+	transactions: Transaction[],
+	shopName: string,
+	kassentag?: Kassentag | null
+): void {
 	const dateStr = new Date().toISOString().slice(0, 10);
 	const json = JSON.stringify(transactions, null, 2);
 	const blob = new Blob([json], { type: 'application/json' });
