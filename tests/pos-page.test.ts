@@ -21,7 +21,7 @@ vi.mock('$lib/db', () => ({
 	getActiveKassentag: vi.fn(),
 	startKassentag: vi.fn(),
 	endKassentag: vi.fn(),
-	commitCheckout: vi.fn(async () => undefined)
+	commitCheckout: vi.fn(async (tx: object) => ({ ...tx, kassentagId: 'k1' }))
 }));
 
 const product: Product = {
@@ -184,5 +184,19 @@ describe('POS Kassentag actions', () => {
 		await vi.advanceTimersByTimeAsync(1500);
 		expect(screen.getByRole('button', { name: 'Wirklich beenden?' })).not.toBeNull();
 		expect(vi.getTimerCount()).toBe(1);
+	});
+
+	it('clears the pending end confirmation timer on unmount', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		vi.mocked(getActiveKassentag).mockResolvedValue(openDay);
+		const view = render(Page);
+
+		await fireEvent.click(await screen.findByRole('button', { name: 'Kassentag beenden' }));
+		expect(screen.getByRole('button', { name: 'Wirklich beenden?' })).not.toBeNull();
+		expect(vi.getTimerCount()).toBe(1);
+
+		view.unmount();
+
+		expect(vi.getTimerCount()).toBe(0);
 	});
 });

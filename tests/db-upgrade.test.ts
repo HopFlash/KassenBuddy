@@ -3,6 +3,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { openDB } from 'idb';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { KasseDB } from '$lib/db';
+import type { Transaction } from '$lib/types';
 
 const DB_NAME = 'kasse-db';
 
@@ -30,7 +31,7 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-function makeTransaction(id: string, kassentagId: string | null) {
+function makeTransaction(id: string, kassentagId: string | null): Transaction {
 	return {
 		id,
 		timestamp: 1_700_000_000_000,
@@ -67,7 +68,7 @@ it('creates all stores and indexes on a fresh install', async () => {
 	expect(tx.objectStore('settings').keyPath).toBeNull();
 	await tx.done;
 
-	await db.put('transactions', makeTransaction('fresh-tx', 'kt-fresh') as never);
+	await db.put('transactions', makeTransaction('fresh-tx', 'kt-fresh'));
 	await expect(db.getAllKeysFromIndex('transactions', 'by-kassentag', 'kt-fresh')).resolves.toEqual([
 		'fresh-tx'
 	]);

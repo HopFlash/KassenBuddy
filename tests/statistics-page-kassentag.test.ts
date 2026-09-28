@@ -20,6 +20,12 @@ import {
 	parseTransactionsJson
 } from '$lib/utils/export';
 import type { Kassentag, Transaction } from '$lib/types';
+import { formatCurrency } from '$lib/utils/currency';
+
+function statValue(label: string): string | null {
+	const card = screen.getByText(label, { selector: 'p' }).parentElement!;
+	return card.querySelectorAll('p')[1]?.textContent ?? null;
+}
 
 vi.mock('$lib/db', () => ({
 	getAllTransactions: vi.fn(),
@@ -132,7 +138,19 @@ describe('Statistics page Kassentag filter', () => {
 		await selectKassentag(select, 'day-a');
 
 		await vi.waitFor(() => expect(getTransactionsByKassentag).toHaveBeenCalledWith('day-a'));
-		expect((await screen.findAllByText('6,00 €')).length).toBeGreaterThan(0);
+		await vi.waitFor(() => expect(screen.queryByText('1× Wein')).toBeNull());
+
+		expect(screen.getByText('2× Bier')).not.toBeNull();
+		expect(screen.getAllByRole('button', { name: 'Transaktion bearbeiten' })).toHaveLength(1);
+		expect(statValue('Transaktionen')).toBe('1');
+		expect(statValue('Gesamtumsatz')).toBe(formatCurrency(6));
+		expect(statValue('💵 Barzahlung')).toBe(formatCurrency(6));
+		expect(statValue('💳 Kartenzahlung')).toBe(formatCurrency(0));
+
+		const breakdown = screen.getByRole('heading', { name: 'Produkt-Auswertung' }).parentElement!;
+		expect(within(breakdown).getByText('Bier')).not.toBeNull();
+		expect(within(breakdown).getByText('2×')).not.toBeNull();
+		expect(within(breakdown).queryByText('Wein')).toBeNull();
 	});
 
 	it('returns to all transactions when "Alle Kassentage" is re-selected', async () => {

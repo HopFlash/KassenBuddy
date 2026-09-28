@@ -5,12 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CheckoutModal from '$lib/components/pos/CheckoutModal.svelte';
 import CheckoutModalClassic from '$lib/components/pos/CheckoutModalClassic.svelte';
 import { cart } from '$lib/stores/cart.svelte';
+import { commitCheckout } from '$lib/db';
 import type { Product } from '$lib/types';
 
 vi.mock('$lib/db', () => ({
 	getSettings: vi.fn(async () => ({ drinkQuotaCounter: 100, quickDiscountPercents: [5, 10, 20] })),
 	getActiveKassentag: vi.fn(async () => null),
-	commitCheckout: vi.fn(async () => undefined)
+	commitCheckout: vi.fn()
 }));
 
 const product: Product = {
@@ -76,6 +77,25 @@ describe.each([
 		expect(screen.getByRole('alert').textContent).toContain(INACTIVE_ERROR);
 		expect(cart.items).toHaveLength(1);
 		checkoutSpy.mockRestore();
+	});
+
+	it('shows the atomic rejection and keeps the cart when a stale modal checks out', async () => {
+		vi.mocked(commitCheckout).mockRejectedValueOnce(new Error(INACTIVE_ERROR));
+		render(Component, baseProps(true));
+
+		await fireEvent.click(screen.getByRole('button', { name: '💳 Karte' }));
+		const cardPay = screen.getByRole('button', { name: /Kartenzahlung bestätigen/ });
+		await fireEvent.click(cardPay);
+
+		await vi.waitFor(() =>
+			expect(screen.getByRole('alert').textContent).toContain(
+				`Zahlung fehlgeschlagen: ${INACTIVE_ERROR}`
+			)
+		);
+		expect(commitCheckout).toHaveBeenCalledTimes(1);
+		expect(cart.items).toHaveLength(1);
+		expect(screen.queryByRole('button', { name: 'Fertig' })).toBeNull();
+		expect((cardPay as HTMLButtonElement).disabled).toBe(false);
 	});
 
 	it('shows a visible error and allows retry when checkout fails', async () => {

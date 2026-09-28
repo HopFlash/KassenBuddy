@@ -298,19 +298,34 @@ export async function saveTransaction(tx: Transaction): Promise<void> {
 	await db.put('transactions', tx);
 }
 
+export const NO_ACTIVE_KASSENTAG_ERROR =
+	'Kein aktiver Kassentag – Zahlung nicht möglich. Bitte zuerst Kassentag starten.';
+
 /**
  * Persists a completed checkout (transaction + settings + stock decrements)
  * in a single IndexedDB transaction so the writes commit atomically and
  * without the round-trip latency of multiple sequential awaits.
+ *
+ * The active Kassentag is resolved inside the same transaction: if none is
+ * open (e.g. ended in another tab), nothing is written and the checkout is
+ * rejected. The stored transaction always carries the authoritative ID.
  */
 export async function commitCheckout(
-	tx: Transaction,
+	checkout: Omit<Transaction, 'kassentagId'>,
 	settingsUpdate: Settings | null,
 	stockUpdates: { productId: string; quantity: number }[]
-): Promise<void> {
+): Promise<Transaction> {
 	const db = await getDb();
-	const idbTx = db.transaction(['transactions', 'settings', 'products'], 'readwrite');
+	const idbTx = db.transaction(['transactions', 'settings', 'products', 'kassentage'], 'readwrite');
 
+	const kassentage = await idbTx.objectStore('kassentage').getAll();
+	const active = kassentage.find((kassentag) => kassentag.status === 'open');
+	if (!active) {
+		await idbTx.done;
+		throw new Error(NO_ACTIVE_KASSENTAG_ERROR);
+	}
+
+	const tx: Transaction = { ...checkout, kassentagId: active.id };
 	const writes: Promise<unknown>[] = [idbTx.objectStore('transactions').put(tx)];
 
 	if (settingsUpdate) {
@@ -331,6 +346,7 @@ export async function commitCheckout(
 
 	await Promise.all(writes);
 	await idbTx.done;
+	return tx;
 }
 
 export async function deleteAllTransactions(): Promise<void> {
@@ -397,12 +413,16 @@ export async function getAllKassentage(): Promise<Kassentag[]> {
 	return kassentage.sort((a, b) => b.startedAt - a.startedAt);
 }
 
+function isValidDateTimestamp(value: number): boolean {
+	return Number.isFinite(value) && !Number.isNaN(new Date(value).getTime());
+}
+
 export async function updateKassentagTimes(
 	id: string,
 	startedAt: number,
 	endedAt: number | null
 ): Promise<void> {
-	if (!Number.isFinite(startedAt) || (endedAt !== null && !Number.isFinite(endedAt))) {
+	if (!isValidDateTimestamp(startedAt) || (endedAt !== null && !isValidDateTimestamp(endedAt))) {
 		throw new Error('Zeitstempel müssen gültige Zeitangaben sein');
 	}
 	if (endedAt !== null && startedAt >= endedAt) {

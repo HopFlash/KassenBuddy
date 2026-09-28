@@ -242,6 +242,21 @@ describe('Kassentag database functions', () => {
 		await expect(db.get('kassentage', original.id)).resolves.toEqual(original);
 	});
 
+	it.each([
+		['a start after the Date range', 8.64e15 + 1, 200],
+		['a start before the Date range', -8.64e15 - 1, 200],
+		['an end after the Date range', 100, 8.64e15 + 1]
+	])('rejects %s without changing the record', async (_case, startedAt, endedAt) => {
+		const { api, db } = await loadFreshDbModule();
+		const original = makeKassentag('record', 100, 200);
+		await db.put('kassentage', original);
+
+		await expect(api.updateKassentagTimes(original.id, startedAt, endedAt)).rejects.toThrow(
+			'Zeitstempel müssen gültige Zeitangaben sein'
+		);
+		await expect(db.get('kassentage', original.id)).resolves.toEqual(original);
+	});
+
 	it('rejects correcting times for a missing Kassentag', async () => {
 		const { api } = await loadFreshDbModule();
 

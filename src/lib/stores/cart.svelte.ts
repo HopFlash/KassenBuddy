@@ -1,6 +1,6 @@
 import type { CartItem, Product, TransactionItem, Transaction } from '$lib/types';
 import { generateId } from '$lib/utils/id';
-import { getSettings, commitCheckout, getActiveKassentag } from '$lib/db';
+import { getSettings, commitCheckout } from '$lib/db';
 
 let items = $state<CartItem[]>([]);
 let subtotalValue = $state(0);
@@ -177,17 +177,14 @@ export const cart = {
 			subtotal: this.getItemTotal(item)
 		}));
 
-		const activeKassentag = await getActiveKassentag();
-
-		const tx: Transaction = {
+		const checkout: Omit<Transaction, 'kassentagId'> = {
 			id: generateId(),
 			timestamp: Date.now(),
 			items: txItems,
 			total,
 			amountPaid,
 			change: Math.round((amountPaid - total) * 100) / 100,
-			paymentMethod,
-			kassentagId: activeKassentag?.id ?? null
+			paymentMethod
 		};
 
 		const soldDrinkCount = items
@@ -204,7 +201,7 @@ export const cart = {
 			.filter((item) => item.product.stock !== null)
 			.map((item) => ({ productId: item.product.id, quantity: item.quantity }));
 
-		await commitCheckout(tx, settingsUpdate, stockUpdates);
+		const tx = await commitCheckout(checkout, settingsUpdate, stockUpdates);
 
 		this.clear();
 		return tx;
