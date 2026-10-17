@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KassenBuddy</string>
+    <string name="title_activity_main">KassenBuddy</string>
+    <string name="package_name">de.kassenbuddy.app</string>
+    <string name="custom_url_scheme">de.kassenbuddy.app</string>
+</resources>

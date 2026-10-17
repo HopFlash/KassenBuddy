@@ -24,6 +24,14 @@ export interface TransactionItem {
 	subtotal: number;
 }
 
+export interface Kassentag {
+	id: string;
+	startedAt: number;
+	endedAt: number | null;
+	status: 'open' | 'closed';
+	source: 'manual' | 'legacy';
+}
+
 export interface Transaction {
 	id: string;
 	timestamp: number;
@@ -32,6 +40,7 @@ export interface Transaction {
 	amountPaid: number;
 	change: number;
 	paymentMethod: 'cash' | 'card';
+	kassentagId: string | null;
 }
 
 export interface Settings {
@@ -39,6 +48,7 @@ export interface Settings {
 	currency: string;
 	shopName: string;
 	quickDiscountPercents: [number, number, number];
+	categories: string[];
 	drinkQuotaCounter: number;
 	checkoutLayout: 'classic' | 'compact';
 }
@@ -48,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	currency: 'EUR',
 	shopName: 'KassenBuddy',
 	quickDiscountPercents: [5, 10, 20],
+	categories: ['Bier', 'Wein', 'Spirituosen', 'Softdrinks', 'Wasser', 'Cocktails', 'Snacks', 'Sonstiges'],
 	drinkQuotaCounter: 0,
 	checkoutLayout: 'compact'
 };

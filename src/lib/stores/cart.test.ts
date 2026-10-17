@@ -32,7 +32,7 @@ const db = vi.hoisted(() => {
 		saveProduct: vi.fn(async () => {
 			throw new Error('stock write failed');
 		}),
-		completeCheckout: vi.fn(async () => {
+		commitCheckout: vi.fn(async () => {
 			throw new Error('checkout write failed');
 		})
 	};
@@ -67,7 +67,7 @@ describe('cart checkout', () => {
 
 		await expect(cart.checkout(1)).rejects.toThrow('checkout write failed');
 
-		expect(db.completeCheckout).toHaveBeenCalledOnce();
+		expect(db.commitCheckout).toHaveBeenCalledOnce();
 		expect(db.state.transactions).toHaveLength(0);
 		expect(cart.items).toHaveLength(1);
 	});

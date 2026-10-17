@@ -21,10 +21,11 @@ KassenBuddy ist ein **offline-fähiges Kassensystem** als Progressive Web App (P
 - **Dashboard** mit Tages- und Gesamtumsatz, Transaktionsanzahl, aktivem Produktbestand und stündlichem Umsatz-Diagramm
 - **Produktverwaltung** – Produkte anlegen, bearbeiten und löschen mit:
   - Name, Verkaufspreis und optionalem Einkaufspreis
-  - Kategorie (Bier, Wein, Spirituosen, Softdrinks, Wasser, Cocktails, Snacks, Sonstiges)
+  - Frei verwaltbaren Kategorien (inkl. Anlegen/Umbenennen/Löschen)
   - Produktbild (Upload, Zuschnitt)
   - Sortierreihenfolge und Aktiv/Inaktiv-Status
   - Optionale Lagerverwaltung (Stückzahl, automatisch reduziert)
+- **Kategorienverwaltung** – Kategorien im Adminbereich direkt anlegen, umbenennen und löschen
 - **Statistik & Export**
   - Umsatzübersicht gesamt und nach Zahlungsart (Bar / Karte)
   - Produktauswertung mit Balkendiagramm
@@ -88,11 +89,108 @@ pnpm check
 ### Produktions-Build erstellen
 
 ```sh
-pnpm build
+pnpm build:web
 pnpm preview
 ```
 
 Der fertige Build liegt im Ordner `build/` und kann auf jedem statischen Webserver oder lokal geöffnet werden.
+
+### Android-App mit Capacitor bauen (separat vom Web-Deploy)
+
+```sh
+# einmalig Plattform anlegen
+pnpm android:init
+
+# Web-Build + Capacitor-Sync für Android
+pnpm build:android
+
+# Android-Projekt in Android Studio öffnen
+pnpm android:open
+
+# Debug-APK bauen (Linux/macOS)
+pnpm android:apk:linux
+
+# Debug-APK bauen (Windows)
+pnpm android:apk:windows
+```
+
+Damit bleiben Website-Build (`pnpm build:web`) und Android-Erzeugung (`pnpm build:android`) getrennt.
+
+**Android Studio installieren:**
+1. Android Studio von der offiziellen Android-Developer-Webseite herunterladen.
+2. Installer starten und das Standard-Setup wählen.
+3. Beim ersten Start die empfohlenen SDK-Komponenten installieren.
+4. Danach das Projekt mit `pnpm android:open` öffnen.
+
+### Android-Build auf Smartphone testen / installieren
+
+1. Android-Projekt aktualisieren:
+   ```sh
+   pnpm build:android
+   pnpm android:open
+   ```
+2. Smartphone per USB verbinden und **USB-Debugging** aktivieren.
+3. In Android Studio das Gerät auswählen und mit **Run (▶)** die Debug-App installieren.
+
+Optional (APK-Datei zum manuellen Installieren):
+
+- Linux/macOS: `pnpm android:apk:linux`
+- Windows: `pnpm android:apk:windows`
+
+Die APK liegt danach unter:
+`android/app/build/outputs/apk/debug/app-debug.apk`
+
+#### Ohne Android Studio (ADB per USB oder WLAN)
+
+1. ADB verfügbar machen:
+   - Standardpfad Windows: `C:\Users\<USER>\AppData\Local\Android\Sdk\platform-tools\adb.exe`
+2. Gerät verbinden:
+   - USB: `adb devices`
+   - WLAN-Debugging:
+     - `adb pair <IP>:<PAIRING_PORT>`
+     - `adb connect <IP>:<DEBUG_PORT>`
+3. Installation:
+   - `adb install -r "android\app\build\outputs\apk\debug\app-debug.apk"`
+4. Bei mehreren Geräten immer mit Serial arbeiten:
+   - `adb -s <SERIAL> install -r "android\app\build\outputs\apk\debug\app-debug.apk"`
+
+#### Häufige Installationsprobleme (Kurzlösung)
+
+- `INSTALL_PARSE_FAILED_NO_CERTIFICATES`: APK ist unsigniert/beschädigt.  
+  → Für Tests immer `pnpm android:apk:windows` oder `pnpm android:apk:linux` nutzen.
+- „App nicht installiert“ bei Update:
+  - alte App vollständig deinstallieren (inkl. Arbeitsprofil/Zweitnutzer),
+  - dann neu installieren.
+- Für genaue Fehlerdiagnose:
+  - `adb install -r ...`
+  - `adb logcat -d | findstr /i "PackageInstaller INSTALL_FAILED"`
+
+### Android-Release für Play Store oder F-Droid
+
+1. Android-Assets aktualisieren:
+   ```sh
+   pnpm build:android
+   ```
+2. Release-Build erzeugen:
+   - **Play Store (AAB)**  
+     - Linux/macOS: `pnpm android:aab:linux`  
+     - Windows: `pnpm android:aab:windows`
+   - **APK (z. B. für F-Droid-Repo/Seitload)**  
+     - Linux/macOS: `pnpm android:apk-release:linux`  
+     - Windows: `pnpm android:apk-release:windows`
+   - Hinweis Windows: Die `:windows`-Skripte wählen automatisch ein kompatibles JDK (17–21). Ein systemweites JAVA_HOME auf JDK 26 wird dafür ignoriert.
+3. Signing in Android Studio/Gradle mit eigenem Keystore konfigurieren (Release muss signiert sein).
+4. Artefakte:
+   - AAB: `android/app/build/outputs/bundle/release/app-release.aab`
+   - APK: `android/app/build/outputs/apk/release/app-release-unsigned.apk` (nach Signing als signierte APK verwenden)
+5. Upload:
+   - **Play Store**: signiertes `.aab` in der Google Play Console hochladen.
+   - **F-Droid**:
+     - Offizielles F-Droid: Projekt einreichen, F-Droid baut aus Source selbst.
+     - Eigener F-Droid-Repo/Manueller Vertrieb: signierte Release-APK bereitstellen.
+6. Play Console Kosten & Sichtbarkeit:
+   - Google Play Developer-Konto: einmalig 25 USD.
+   - Nicht öffentlich auffindbar über interne/geschlossene Test-Tracks oder private Apps (Managed Google Play).
 
 ### Workspace-Management
 
@@ -147,6 +245,7 @@ src/
     ├── +page.svelte      # Hauptkasse (POS)
     └── admin/
         ├── +page.svelte       # Admin-Dashboard
+        ├── categories/        # Kategorienverwaltung
         ├── products/          # Produktverwaltung
         ├── statistics/        # Statistik & Export
         └── settings/          # Einstellungen & Datensicherung

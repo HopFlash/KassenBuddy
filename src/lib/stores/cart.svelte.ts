@@ -1,8 +1,12 @@
 import type { CartItem, Product, TransactionItem, Transaction } from '$lib/types';
 import { generateId } from '$lib/utils/id';
-import { completeCheckout } from '$lib/db';
+import { getSettings, commitCheckout } from '$lib/db';
 
 let items = $state<CartItem[]>([]);
+let subtotalValue = $state(0);
+let countValue = $state(0);
+let hasDiscountValue = $state(false);
+let discountPercentValue = $state(0);
 
 const DISCOUNT_ID_PREFIX = 'discount:';
 
@@ -19,6 +23,30 @@ function getDiscountPercent(product: Product): number {
 
 function roundToCents(value: number): number {
 	return Math.round(value * 100) / 100;
+}
+
+function recomputeMeta(): void {
+	let subtotal = 0;
+	let count = 0;
+	let hasDiscount = false;
+	let discountPercent = 0;
+
+	for (const item of items) {
+		count += item.quantity;
+		if (isDiscountProduct(item.product)) {
+			hasDiscount = true;
+			if (discountPercent <= 0) {
+				discountPercent = getDiscountPercent(item.product);
+			}
+			continue;
+		}
+		subtotal += item.product.price * item.quantity;
+	}
+
+	subtotalValue = roundToCents(subtotal);
+	countValue = count;
+	hasDiscountValue = hasDiscount;
+	discountPercentValue = discountPercent;
 }
 
 function createDiscountProduct(percent: number): Product {
@@ -42,40 +70,33 @@ export const cart = {
 	},
 
 	get subtotal() {
-		return roundToCents(
-			items
-				.filter((item) => !isDiscountProduct(item.product))
-				.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
-		);
+		return subtotalValue;
 	},
 
 	get discountTotal() {
-		const discountItem = items.find((item) => isDiscountProduct(item.product));
-		if (!discountItem) return 0;
+		if (!hasDiscountValue || discountPercentValue <= 0 || subtotalValue <= 0) return 0;
 
-		const percent = getDiscountPercent(discountItem.product);
-		if (percent <= 0 || this.subtotal <= 0) return 0;
-
-		const maxPercent = Math.min(percent, 100);
-		return -roundToCents((this.subtotal * maxPercent) / 100);
+		const maxPercent = Math.min(discountPercentValue, 100);
+		return -roundToCents((subtotalValue * maxPercent) / 100);
 	},
 
 	get hasDiscount() {
-		return items.some((item) => isDiscountProduct(item.product));
+		return hasDiscountValue;
 	},
 
 	get total() {
-		return roundToCents(this.subtotal + this.discountTotal);
+		return roundToCents(subtotalValue + this.discountTotal);
 	},
 
 	get count() {
-		return items.reduce((sum, item) => sum + item.quantity, 0);
+		return countValue;
 	},
 
 	add(product: Product) {
 		if (isDiscountProduct(product)) {
 			items = items.filter((i) => !isDiscountProduct(i.product));
 			items.push({ product, quantity: 1 });
+			recomputeMeta();
 			return;
 		}
 
@@ -85,6 +106,7 @@ export const cart = {
 		} else {
 			items.push({ product, quantity: 1 });
 		}
+		recomputeMeta();
 	},
 
 	addPercentageDiscount(percent: number) {
@@ -108,18 +130,25 @@ export const cart = {
 		return roundToCents(this.getItemUnitPrice(item) * item.quantity);
 	},
 
+	isDiscountItem(item: CartItem) {
+		return isDiscountProduct(item.product);
+	},
+
 	removeDiscount() {
 		items = items.filter((i) => !isDiscountProduct(i.product));
+		recomputeMeta();
 	},
 
 	remove(productId: string) {
 		items = items.filter((i) => i.product.id !== productId);
+		recomputeMeta();
 	},
 
 	increment(productId: string) {
 		const item = items.find((i) => i.product.id === productId);
 		if (!item || isDiscountProduct(item.product)) return;
 		item.quantity++;
+		recomputeMeta();
 	},
 
 	decrement(productId: string) {
@@ -129,11 +158,13 @@ export const cart = {
 			this.remove(productId);
 		} else {
 			item.quantity--;
+			recomputeMeta();
 		}
 	},
 
 	clear() {
 		items = [];
+		recomputeMeta();
 	},
 
 	async checkout(amountPaid: number, paymentMethod: 'cash' | 'card' = 'cash'): Promise<Transaction> {
@@ -146,7 +177,7 @@ export const cart = {
 			subtotal: this.getItemTotal(item)
 		}));
 
-		const tx: Transaction = {
+		const checkout: Omit<Transaction, 'kassentagId'> = {
 			id: generateId(),
 			timestamp: Date.now(),
 			items: txItems,
@@ -156,10 +187,21 @@ export const cart = {
 			paymentMethod
 		};
 
-		const soldItems = items
+		const soldDrinkCount = items
 			.filter((item) => !isDiscountProduct(item.product))
+			.reduce((sum, item) => sum + item.quantity, 0);
+
+		let settingsUpdate = null;
+		if (soldDrinkCount > 0) {
+			const settings = await getSettings();
+			settingsUpdate = { ...settings, drinkQuotaCounter: settings.drinkQuotaCounter - soldDrinkCount };
+		}
+
+		const stockUpdates = items
+			.filter((item) => item.product.stock !== null)
 			.map((item) => ({ productId: item.product.id, quantity: item.quantity }));
-		await completeCheckout(tx, soldItems);
+
+		const tx = await commitCheckout(checkout, settingsUpdate, stockUpdates);
 
 		this.clear();
 		return tx;

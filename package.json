@@ -1,14 +1,25 @@
 {
 	"name": "kassenbuddy",
 	"private": true,
-	"version": "1.0.4",
+	"version": "1.1.2",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "pnpm run build:web",
+		"build:web": "vite build",
+		"android:init": "npx cap add android",
+		"android:open": "npx cap open android",
+		"android:sync": "npx cap sync android",
+		"build:android": "pnpm run build:web && pnpm run android:sync",
+		"android:apk:linux": "cd android && ./gradlew assembleDebug",
+		"android:apk:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\android-gradle-windows.ps1 -Task assembleDebug",
+		"android:apk-release:linux": "cd android && ./gradlew assembleRelease",
+		"android:apk-release:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\android-gradle-windows.ps1 -Task assembleRelease",
+		"android:aab:linux": "cd android && ./gradlew bundleRelease",
+		"android:aab:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\android-gradle-windows.ps1 -Task bundleRelease",
 		"preview": "vite preview",
-		"test": "vitest run",
 		"prepare": "svelte-kit sync || echo ''",
+		"test": "vitest run",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"watch": "vite build --watch"
@@ -33,6 +44,9 @@
 		"workbox-window": "^7.4.1"
 	},
 	"dependencies": {
+		"@capacitor/android": "^7.4.3",
+		"@capacitor/cli": "^7.4.3",
+		"@capacitor/core": "^7.4.3",
 		"idb": "^8.0.3",
 		"pnpm": "11.5.2",
 		"xlsx": "^0.18.5"

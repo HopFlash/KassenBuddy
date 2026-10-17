@@ -49,9 +49,9 @@
 </script>
 
 {#if authenticated}
-	<div class="flex h-full">
+	<div class="flex h-full min-h-0">
 		<!-- Sidebar -->
-		<nav class="w-56 bg-surface-light border-r border-surface-lighter flex flex-col p-4 shrink-0">
+		<nav class="w-56 bg-surface-light border-r border-surface-lighter flex flex-col p-4 shrink-0 min-h-0">
 			<h2 class="text-xl font-bold mb-6">⚙️ Admin</h2>
 			<div class="flex flex-col gap-2 flex-1">
 				<a
@@ -61,10 +61,22 @@
 					📊 Übersicht
 				</a>
 				<a
+					href="{base}/admin/kassentage"
+					class="px-4 py-3 rounded-xl hover:bg-surface-lighter transition-colors text-sm font-semibold"
+				>
+					📅 Kassentage
+				</a>
+				<a
 					href="{base}/admin/products"
 					class="px-4 py-3 rounded-xl hover:bg-surface-lighter transition-colors text-sm font-semibold"
 				>
 					📦 Produkte
+				</a>
+				<a
+					href="{base}/admin/categories"
+					class="px-4 py-3 rounded-xl hover:bg-surface-lighter transition-colors text-sm font-semibold"
+				>
+					🏷️ Kategorien
 				</a>
 				<a
 					href="{base}/admin/statistics"
@@ -88,14 +100,14 @@
 		</nav>
 
 		<!-- Content -->
-		<div class="flex-1 overflow-y-auto p-6">
+		<div class="admin-scrollbar flex-1 overflow-y-scroll [scrollbar-gutter:stable] p-4 sm:p-6 min-h-0">
 			{@render children()}
 		</div>
 	</div>
 {:else}
 	<!-- PIN Entry Screen -->
-	<div class="flex items-center justify-center h-full">
-		<div class="bg-surface-light rounded-2xl p-8 w-80">
+	<div class="flex items-center justify-center h-full min-h-0 overflow-y-auto p-4">
+		<div class="bg-surface-light rounded-2xl p-5 sm:p-8 w-[min(92vw,22rem)] max-h-[92dvh] overflow-y-auto">
 			<h2 class="text-xl font-bold text-center mb-6">🔒 Admin-Zugang</h2>
 
 			<!-- PIN dots -->
@@ -117,7 +129,7 @@
 					{:else}
 						<button
 							type="button"
-							class="bg-surface-lighter hover:bg-surface-lighter/80 active:bg-accent rounded-xl py-4 text-xl font-semibold transition-colors"
+							class="bg-surface-lighter hover:bg-surface-lighter/80 active:bg-accent rounded-xl min-h-11 sm:min-h-12 py-3 sm:py-4 text-lg sm:text-xl font-semibold transition-colors"
 							onclick={() => key === '⌫' ? backspace() : pressDigit(key)}
 						>
 							{key}
@@ -128,7 +140,7 @@
 
 			<button
 				type="button"
-				class="w-full mt-4 bg-accent hover:bg-accent-hover text-white rounded-xl py-3 font-bold transition-colors disabled:opacity-40"
+				class="w-full mt-4 bg-accent hover:bg-accent-hover text-white rounded-xl min-h-11 py-3 font-bold transition-colors disabled:opacity-40"
 				disabled={pinInput.length < 4}
 				onclick={checkPin}
 			>

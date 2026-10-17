@@ -1,9 +1,15 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+	resolve: {
+		conditions: ['browser']
+	},
+	test: {
+		environment: 'node'
+	},
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
@@ -40,7 +46,7 @@ export default defineConfig({
 			},
 			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,json}'],
-				globIgnores: ['server/**'],
+				globIgnores: ['server/**', '**/_app/version.json'],
 				navigateFallback: null
 			}
 		})

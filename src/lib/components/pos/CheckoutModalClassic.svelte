@@ -8,34 +8,47 @@
 		open: boolean;
 		onclose: () => void;
 		oncomplete: () => void;
+		kassentagActive: boolean;
 	}
 
-	let { open = $bindable(), onclose, oncomplete }: Props = $props();
+	let { open = $bindable(), onclose, oncomplete, kassentagActive }: Props = $props();
+
+	const INACTIVE_MESSAGE = 'Kein aktiver Kassentag – Zahlung nicht möglich. Bitte zuerst Kassentag starten.';
 
 	let paymentMethod = $state<'cash' | 'card'>('cash');
 	let numpadValue = $state('');
 	let result: { total: number; paid: number; change: number; method: 'cash' | 'card' } | null = $state(null);
 	let processing = $state(false);
-	let checkoutError = $state('');
+	let paymentError = $state('');
+
+	const errorMessage = $derived(kassentagActive ? paymentError : INACTIVE_MESSAGE);
+	const payDisabled = $derived(processing || !kassentagActive);
 
 	function reset() {
 		numpadValue = '';
 		result = null;
 		processing = false;
-		checkoutError = '';
+		paymentError = '';
 		paymentMethod = 'cash';
 	}
 
 	async function handleConfirm(amount: number) {
-		if (processing || (paymentMethod === 'cash' && amount < cart.total)) return;
+		if (processing) return;
+		if (!kassentagActive) {
+			paymentError = INACTIVE_MESSAGE;
+			return;
+		}
+		if (paymentMethod === 'cash' && amount < cart.total) return;
+		paymentError = '';
 		processing = true;
-		checkoutError = '';
+		const method = paymentMethod;
 		try {
-			const tx = await cart.checkout(amount, paymentMethod);
-			result = { total: tx.total, paid: tx.amountPaid, change: tx.change, method: paymentMethod };
+			const tx = await cart.checkout(amount, method);
+			result = { total: tx.total, paid: tx.amountPaid, change: tx.change, method };
 		} catch (error) {
 			console.error('Checkout failed', error);
-			checkoutError = 'Zahlung konnte nicht gespeichert werden. Bitte erneut versuchen.';
+			const detail = error instanceof Error ? error.message : String(error);
+			paymentError = `Zahlung fehlgeschlagen: ${detail}`;
 		} finally {
 			processing = false;
 		}
@@ -60,11 +73,6 @@
 </script>
 
 <Modal {open} title="Bezahlen" onclose={handleClose} fit>
-	{#if checkoutError}
-		<p role="alert" class="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-			{checkoutError}
-		</p>
-	{/if}
 	{#if result}
 		<!-- Success screen -->
 		<div class="flex flex-col items-center justify-center h-full min-h-0 gap-2 sm:gap-3 text-center">
@@ -91,7 +99,12 @@
 			</button>
 		</div>
 	{:else}
-		<div class="flex flex-col h-full min-h-0 gap-2.5 sm:gap-3">
+		{#if errorMessage}
+			<p class="shrink-0 mb-1.5 rounded-lg bg-danger/15 px-3 py-2 text-sm font-semibold text-danger text-center" role="alert">
+				{errorMessage}
+			</p>
+		{/if}
+		<div class="flex flex-col h-full min-h-0 gap-1.5 sm:gap-2.5">
 			<!-- Amount -->
 			<div class="text-center shrink-0">
 				<p class="text-text-muted text-sm">Zu zahlen</p>
@@ -99,17 +112,17 @@
 			</div>
 
 			<!-- Payment method toggle -->
-			<div class="grid grid-cols-2 gap-2 shrink-0">
+			<div class="grid grid-cols-2 gap-1.5 sm:gap-2 shrink-0">
 				<button
 					type="button"
-					class="rounded-xl min-h-11 py-2.5 font-semibold transition-colors border-2 {paymentMethod === 'cash' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
+					class="rounded-xl min-h-11 py-2.5 text-sm sm:text-base font-semibold transition-colors border-2 {paymentMethod === 'cash' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
 					onclick={() => { paymentMethod = 'cash'; numpadValue = ''; }}
 				>
 					💵 Bargeld
 				</button>
 				<button
 					type="button"
-					class="rounded-xl min-h-11 py-2.5 font-semibold transition-colors border-2 {paymentMethod === 'card' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
+					class="rounded-xl min-h-11 py-2.5 text-sm sm:text-base font-semibold transition-colors border-2 {paymentMethod === 'card' ? 'border-accent bg-accent/20 text-accent' : 'border-surface-lighter bg-surface-lighter text-text-muted'}"
 					onclick={() => { paymentMethod = 'card'; numpadValue = ''; }}
 				>
 					💳 Karte
@@ -140,9 +153,9 @@
 
 				<button
 					type="button"
-					class="w-full shrink-0 min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-2.5 text-sm font-semibold transition-colors"
+					class="w-full shrink-0 min-h-11 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 					onclick={() => handleConfirm(cart.total)}
-					disabled={processing}
+					disabled={payDisabled}
 				>
 					Passend bezahlt ({formatCurrency(cart.total)})
 				</button>
@@ -154,9 +167,9 @@
 				</div>
 				<button
 					type="button"
-					class="w-full shrink-0 min-h-12 bg-success hover:bg-success/80 text-white rounded-xl py-3 text-base sm:text-lg font-bold transition-colors"
+					class="w-full shrink-0 min-h-12 bg-success hover:bg-success/80 text-white rounded-xl py-3 text-base sm:text-lg font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 					onclick={handleCardPay}
-					disabled={processing}
+					disabled={payDisabled}
 				>
 					{processing ? 'Verarbeite…' : `Kartenzahlung bestätigen · ${formatCurrency(cart.total)}`}
 				</button>

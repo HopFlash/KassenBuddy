@@ -7,16 +7,29 @@
 
 	interface Props {
 		oncheckout: () => void;
+		kassentagActive: boolean;
 	}
 
-	let { oncheckout }: Props = $props();
+	let { oncheckout, kassentagActive }: Props = $props();
 
 	let confirmClear = $state(false);
 	let quickDiscounts = $state<Settings['quickDiscountPercents']>([5, 10, 20]);
 
-	onMount(async () => {
-		const settings = await getSettings();
-		quickDiscounts = settings.quickDiscountPercents;
+	let settingsError = $state('');
+
+	async function loadQuickDiscounts() {
+		settingsError = '';
+		try {
+			const settings = await getSettings();
+			quickDiscounts = settings.quickDiscountPercents;
+		} catch (error) {
+			console.error('Schnellrabatte konnten nicht geladen werden', error);
+			settingsError = 'Schnellrabatte konnten nicht geladen werden – Standardwerte aktiv.';
+		}
+	}
+
+	onMount(() => {
+		void loadQuickDiscounts();
 	});
 
 	const overStockItems = $derived(
@@ -51,11 +64,19 @@
 	<!-- Cart items -->
 	<div class="rounded-lg p-2 bg-surface-lighter mb-2">
 		<p class="text-xs text-text-muted mb-2">Schnellrabatt</p>
-		<div class="flex gap-2">
+		{#if settingsError}
+			<div class="mb-2 flex items-center justify-between gap-2 rounded-lg bg-warning/10 px-2 py-1 text-xs text-warning">
+				<span role="alert">{settingsError}</span>
+				<button type="button" class="shrink-0 font-semibold underline" onclick={loadQuickDiscounts}>
+					Erneut versuchen
+				</button>
+			</div>
+		{/if}
+		<div class="flex flex-wrap gap-2">
 			{#each quickDiscounts as percent}
 				<button
 					type="button"
-					class="flex-1 rounded-lg py-2 text-xs font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
+					class="min-w-0 flex-1 rounded-lg min-h-10 py-2 text-xs font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
 					onclick={() => applyDiscount(percent)}
 					disabled={cart.subtotal <= 0}
 				>
@@ -64,7 +85,7 @@
 			{/each}
 			<button
 				type="button"
-				class="rounded-lg px-3 py-2 text-xs font-semibold bg-danger/15 text-danger hover:bg-danger/25 transition-colors disabled:opacity-40"
+				class="rounded-lg px-3 min-h-10 py-2 text-xs font-semibold bg-danger/15 text-danger hover:bg-danger/25 transition-colors disabled:opacity-40"
 				onclick={() => cart.removeDiscount()}
 				disabled={!cart.hasDiscount}
 			>
@@ -76,12 +97,14 @@
 	<div class="flex-1 overflow-y-auto space-y-2 mb-3">
 		{#each cart.items as item (item.product.id)}
 			{@const isOver = item.product.stock !== null && item.quantity > item.product.stock}
-			{@const isDiscount = item.product.price < 0}
+			{@const isDiscount = cart.isDiscountItem(item)}
+			{@const unitPrice = cart.getItemUnitPrice(item)}
+			{@const itemTotal = cart.getItemTotal(item)}
 			<div class="rounded-lg p-3 flex items-center gap-3 {isOver ? 'bg-warning/10 ring-1 ring-warning/40' : 'bg-surface-lighter'}">
 				<div class="flex-1 min-w-0">
 					<p class="font-semibold text-sm truncate">{item.product.name}</p>
 					<p class="text-text-muted text-xs">
-						{formatCurrency(cart.getItemUnitPrice(item))} × {item.quantity}
+						{formatCurrency(unitPrice)} × {item.quantity}
 						{#if isDiscount}
 							<span class="text-accent"> · Rabattposition</span>
 						{/if}
@@ -109,7 +132,7 @@
 						</button>
 					{/if}
 				</div>
-				<p class="font-bold text-sm w-20 text-right">{formatCurrency(cart.getItemTotal(item))}</p>
+				<p class="font-bold text-sm w-20 text-right">{formatCurrency(itemTotal)}</p>
 			</div>
 		{:else}
 			<div class="text-center text-text-muted py-8">
@@ -148,12 +171,16 @@
 
 		<button
 			type="button"
-			class="w-full bg-success hover:bg-success/80 active:bg-success/60 text-white rounded-xl py-4 text-lg font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-			disabled={cart.items.length === 0}
+			class="w-full bg-success hover:bg-success/80 active:bg-success/60 text-white rounded-xl min-h-12 py-4 text-lg font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+			disabled={cart.items.length === 0 || !kassentagActive}
 			onclick={oncheckout}
 		>
 			Bezahlen
 		</button>
+
+		{#if !kassentagActive}
+			<p class="text-center text-xs text-warning">Bitte zuerst Kassentag starten</p>
+		{/if}
 
 		{#if cart.items.length > 0}
 			<button

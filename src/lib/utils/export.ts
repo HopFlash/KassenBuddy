@@ -1,8 +1,21 @@
 import * as XLSX from 'xlsx';
-import type { Transaction } from '$lib/types';
+import type { Kassentag, Transaction } from '$lib/types';
 import { formatDate } from '$lib/utils/currency';
+import { formatKassentagRange } from '$lib/utils/kassentag';
 
-export function exportTransactionsToXlsx(transactions: Transaction[], shopName: string): void {
+function kassentagPeriodLabel(kassentag?: Kassentag | null): string {
+	return kassentag ? `Kassentag: ${formatKassentagRange(kassentag)}` : 'Alle Kassentage';
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function exportTransactionsToXlsx(
+	transactions: Transaction[],
+	shopName: string,
+	kassentag?: Kassentag | null
+): void {
 	const wb = XLSX.utils.book_new();
 
 	// Sheet 1: All transactions
@@ -21,7 +34,8 @@ export function exportTransactionsToXlsx(transactions: Transaction[], shopName: 
 		}))
 	);
 
-	const txSheet = XLSX.utils.json_to_sheet(txRows);
+	const txSheet = XLSX.utils.aoa_to_sheet([[kassentagPeriodLabel(kassentag)]]);
+	XLSX.utils.sheet_add_json(txSheet, txRows, { origin: 'A3' });
 	XLSX.utils.book_append_sheet(wb, txSheet, 'Transaktionen');
 
 	// Sheet 2: Product summary
@@ -61,7 +75,11 @@ export function exportTransactionsToXlsx(transactions: Transaction[], shopName: 
 	XLSX.writeFile(wb, `${shopName}_Verkäufe_${dateStr}.xlsx`);
 }
 
-export function exportProductSummaryToXlsx(transactions: Transaction[], shopName: string): void {
+export function exportProductSummaryToXlsx(
+	transactions: Transaction[],
+	shopName: string,
+	kassentag?: Kassentag | null
+): void {
 	const wb = XLSX.utils.book_new();
 
 	// --- Sheet 1: Produktübersicht (sorted by quantity desc) ---
@@ -103,7 +121,9 @@ export function exportProductSummaryToXlsx(transactions: Transaction[], shopName
 		'Anteil %': 100
 	});
 
-	XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Produkte');
+	const summarySheet = XLSX.utils.aoa_to_sheet([[kassentagPeriodLabel(kassentag)]]);
+	XLSX.utils.sheet_add_json(summarySheet, summaryRows, { origin: 'A3' });
+	XLSX.utils.book_append_sheet(wb, summarySheet, 'Produkte');
 
 	// --- Sheet 2: Tagesverlauf (products × dates matrix, quantities) ---
 	const dateSet = new Set<string>();
@@ -147,9 +167,14 @@ export function exportProductSummaryToXlsx(transactions: Transaction[], shopName
 	XLSX.writeFile(wb, `${shopName}_Produktübersicht_${dateStr}.xlsx`);
 }
 
-export function exportTransactionsToJson(transactions: Transaction[], shopName: string): void {
+export function exportTransactionsToJson(
+	transactions: Transaction[],
+	shopName: string,
+	kassentag?: Kassentag | null
+): void {
 	const dateStr = new Date().toISOString().slice(0, 10);
-	const json = JSON.stringify(transactions, null, 2);
+	const payload = { kassentag: kassentag ?? null, transactions };
+	const json = JSON.stringify(payload, null, 2);
 	const blob = new Blob([json], { type: 'application/json' });
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement('a');
@@ -167,19 +192,34 @@ export async function parseTransactionsJson(file: File): Promise<Transaction[]> 
 	} catch {
 		throw new Error('Ungültige JSON-Datei');
 	}
-	if (!Array.isArray(data)) {
-		throw new Error('JSON muss ein Array von Transaktionen sein');
+	const list: unknown =
+		Array.isArray(data)
+			? data
+			: isRecord(data)
+				? data.transactions
+				: undefined;
+
+	if (!Array.isArray(list)) {
+		throw new Error(
+			'JSON muss ein Array von Transaktionen oder ein Export-Objekt mit "transactions" enthalten'
+		);
 	}
-	for (const item of data) {
+	for (const item of list) {
 		if (
-			typeof item !== 'object' ||
-			item === null ||
-			typeof (item as Record<string, unknown>).id !== 'string' ||
-			typeof (item as Record<string, unknown>).timestamp !== 'number' ||
-			!Array.isArray((item as Record<string, unknown>).items)
+			!isRecord(item) ||
+			typeof item.id !== 'string' ||
+			typeof item.timestamp !== 'number' ||
+			!Array.isArray(item.items)
 		) {
 			throw new Error('Ungültiges Format: Jeder Eintrag benötigt id, timestamp und items');
 		}
 	}
-	return data as Transaction[];
+
+	return (list as unknown[]).map((item) => {
+		const record = item as Record<string, unknown>;
+		return {
+			...record,
+			kassentagId: typeof record.kassentagId === 'string' ? record.kassentagId : null
+		} as unknown as Transaction;
+	});
 }
