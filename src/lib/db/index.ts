@@ -37,6 +37,21 @@ function normalizeSettings(settings: Partial<Settings> | null | undefined): Sett
 	};
 }
 
+async function abortAndRethrow(
+	transaction: { abort: () => void; done: Promise<unknown> },
+	error: unknown
+): Promise<never> {
+	try {
+		transaction.abort();
+	} catch (abortError) {
+		if (!(abortError instanceof DOMException && abortError.name === 'InvalidStateError')) {
+			throw abortError;
+		}
+	}
+	await transaction.done.catch(() => {});
+	throw error;
+}
+
 export async function getDb(): Promise<KasseDB> {
 	if (dbInstance) return dbInstance;
 
@@ -151,6 +166,42 @@ export async function saveTransaction(tx: Transaction): Promise<void> {
 	await db.put('transactions', tx);
 }
 
+export async function completeCheckout(
+	transaction: Transaction,
+	soldItems: { productId: string; quantity: number }[]
+): Promise<void> {
+	const db = await getDb();
+	const dbTransaction = db.transaction(['transactions', 'products', 'settings'], 'readwrite');
+	const productStore = dbTransaction.objectStore('products');
+	const settingsStore = dbTransaction.objectStore('settings');
+
+	try {
+		for (const item of soldItems) {
+			const product = await productStore.get(item.productId);
+			if (product && product.stock !== null) {
+				await productStore.put({
+					...product,
+					stock: Math.max(0, product.stock - item.quantity)
+				});
+			}
+		}
+
+		if (soldItems.length > 0) {
+			const settings = normalizeSettings(await settingsStore.get('main'));
+			const soldItemCount = soldItems.reduce((sum, item) => sum + item.quantity, 0);
+			await settingsStore.put(
+				{ ...settings, drinkQuotaCounter: settings.drinkQuotaCounter - soldItemCount },
+				'main'
+			);
+		}
+
+		await dbTransaction.objectStore('transactions').put(transaction);
+		await dbTransaction.done;
+	} catch (error) {
+		return abortAndRethrow(dbTransaction, error);
+	}
+}
+
 export async function deleteAllTransactions(): Promise<void> {
 	const db = await getDb();
 	await db.clear('transactions');
@@ -172,4 +223,21 @@ export async function getSettings(): Promise<Settings> {
 export async function saveSettings(settings: Settings): Promise<void> {
 	const db = await getDb();
 	await db.put('settings', normalizeSettings(settings), 'main');
+}
+
+export async function replaceBackupData(settings: Settings, products: Product[]): Promise<void> {
+	const db = await getDb();
+	const dbTransaction = db.transaction(['products', 'settings'], 'readwrite');
+	const productStore = dbTransaction.objectStore('products');
+
+	try {
+		await productStore.clear();
+		for (const product of products) {
+			await productStore.put(product);
+		}
+		await dbTransaction.objectStore('settings').put(normalizeSettings(settings), 'main');
+		await dbTransaction.done;
+	} catch (error) {
+		return abortAndRethrow(dbTransaction, error);
+	}
 }

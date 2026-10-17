@@ -1,6 +1,6 @@
 import type { CartItem, Product, TransactionItem, Transaction } from '$lib/types';
 import { generateId } from '$lib/utils/id';
-import { saveTransaction, getProduct, saveProduct, getSettings, saveSettings } from '$lib/db';
+import { completeCheckout } from '$lib/db';
 
 let items = $state<CartItem[]>([]);
 
@@ -156,29 +156,10 @@ export const cart = {
 			paymentMethod
 		};
 
-		await saveTransaction(tx);
-
-		const soldDrinkCount = items
+		const soldItems = items
 			.filter((item) => !isDiscountProduct(item.product))
-			.reduce((sum, item) => sum + item.quantity, 0);
-
-		if (soldDrinkCount > 0) {
-			const settings = await getSettings();
-			await saveSettings({
-				...settings,
-				drinkQuotaCounter: settings.drinkQuotaCounter - soldDrinkCount
-			});
-		}
-
-		// Lagerbestand dekrementieren
-		for (const item of items) {
-			if (item.product.stock !== null) {
-				const current = await getProduct(item.product.id);
-				if (current && current.stock !== null) {
-					await saveProduct({ ...current, stock: Math.max(0, current.stock - item.quantity) });
-				}
-			}
-		}
+			.map((item) => ({ productId: item.product.id, quantity: item.quantity }));
+		await completeCheckout(tx, soldItems);
 
 		this.clear();
 		return tx;

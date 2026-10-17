@@ -16,20 +16,29 @@
 	let numpadValue = $state('');
 	let result: { total: number; paid: number; change: number; method: 'cash' | 'card' } | null = $state(null);
 	let processing = $state(false);
+	let checkoutError = $state('');
 
 	function reset() {
 		numpadValue = '';
 		result = null;
 		processing = false;
+		checkoutError = '';
 		paymentMethod = 'cash';
 	}
 
 	async function handleConfirm(amount: number) {
-		if (paymentMethod === 'cash' && amount < cart.total) return;
+		if (processing || (paymentMethod === 'cash' && amount < cart.total)) return;
 		processing = true;
-		const tx = await cart.checkout(amount, paymentMethod);
-		result = { total: tx.total, paid: tx.amountPaid, change: tx.change, method: paymentMethod };
-		processing = false;
+		checkoutError = '';
+		try {
+			const tx = await cart.checkout(amount, paymentMethod);
+			result = { total: tx.total, paid: tx.amountPaid, change: tx.change, method: paymentMethod };
+		} catch (error) {
+			console.error('Checkout failed', error);
+			checkoutError = 'Zahlung konnte nicht gespeichert werden. Bitte erneut versuchen.';
+		} finally {
+			processing = false;
+		}
 	}
 
 	async function handleCardPay() {
@@ -51,6 +60,11 @@
 </script>
 
 <Modal {open} title="Bezahlen" onclose={handleClose} fit>
+	{#if checkoutError}
+		<p role="alert" class="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+			{checkoutError}
+		</p>
+	{/if}
 	{#if result}
 		<!-- Success screen -->
 		<div class="flex flex-col items-center justify-center h-full min-h-0 gap-2 sm:gap-3 text-center">
