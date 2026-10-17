@@ -46,6 +46,7 @@
 			const tx = await cart.checkout(amount, method);
 			result = { total: tx.total, paid: tx.amountPaid, change: tx.change, method };
 		} catch (error) {
+			console.error('Checkout failed', error);
 			const detail = error instanceof Error ? error.message : String(error);
 			paymentError = `Zahlung fehlgeschlagen: ${detail}`;
 		} finally {

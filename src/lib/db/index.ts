@@ -75,6 +75,21 @@ function normalizeSettings(settings: Partial<Settings> | null | undefined): Sett
 	};
 }
 
+async function abortAndRethrow(
+	transaction: { abort: () => void; done: Promise<unknown> },
+	error: unknown
+): Promise<never> {
+	try {
+		transaction.abort();
+	} catch (abortError) {
+		if (!(abortError instanceof DOMException && abortError.name === 'InvalidStateError')) {
+			throw abortError;
+		}
+	}
+	await transaction.done.catch(() => {});
+	throw error;
+}
+
 function localDayKey(timestamp: number): string {
 	const date = new Date(timestamp);
 	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
@@ -485,6 +500,23 @@ export async function saveSettings(settings: Settings): Promise<void> {
 	await db.put('settings', normalizeSettings(settings), 'main');
 }
 
+export async function replaceBackupData(settings: Settings, products: Product[]): Promise<void> {
+	const db = await getDb();
+	const dbTransaction = db.transaction(['products', 'settings'], 'readwrite');
+	const productStore = dbTransaction.objectStore('products');
+
+	try {
+		await productStore.clear();
+		for (const product of products) {
+			await productStore.put(product);
+		}
+		await dbTransaction.objectStore('settings').put(normalizeSettings(settings), 'main');
+		await dbTransaction.done;
+	} catch (error) {
+		return abortAndRethrow(dbTransaction, error);
+	}
+}
+
 export async function getCategories(): Promise<string[]> {
 	const settings = await getSettings();
 	return settings.categories;
@@ -569,6 +601,6 @@ export async function deleteCategory(name: string): Promise<string[]> {
 	const products = await getAllProducts();
 	const affected = products.filter((product) => categoriesEqual(product.category, category));
 	await Promise.all(affected.map((product) => saveProduct({ ...product, category: fallback })));
-
+	return getCategories();
 	return getCategories();
 }
