@@ -40,7 +40,10 @@ const product: Product = {
 const settings = {
 	drinkQuotaCounter: 100,
 	checkoutLayout: 'compact',
-	quickDiscountPercents: [5, 10, 20]
+	quickDiscountPercents: [5, 10, 20],
+	quickDiscountPercentsEnabled: true,
+	quickDiscountAmounts: [1, 2, 3],
+	quickDiscountAmountsEnabled: true
 };
 
 const openDay: Kassentag = {

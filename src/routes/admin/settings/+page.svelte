@@ -9,11 +9,15 @@
 		currency: 'EUR',
 		shopName: 'KassenBuddy',
 		quickDiscountPercents: [5, 10, 20],
+		quickDiscountPercentsEnabled: true,
+		quickDiscountAmounts: [1, 2, 3],
+		quickDiscountAmountsEnabled: true,
 		categories: ['Bier', 'Wein', 'Spirituosen', 'Softdrinks', 'Wasser', 'Cocktails', 'Snacks', 'Sonstiges'],
 		drinkQuotaCounter: 0,
 		checkoutLayout: 'compact'
 	});
 	let discountInputs = $state(['5', '10', '20']);
+	let discountAmountInputs = $state(['1', '2', '3']);
 	let quotaCounterInput = $state('0');
 	let newPin = $state('');
 	let confirmPin = $state('');
@@ -32,6 +36,7 @@
 	onMount(async () => {
 		settings = await getSettings();
 		discountInputs = settings.quickDiscountPercents.map((p) => String(p));
+		discountAmountInputs = settings.quickDiscountAmounts.map((amount) => String(amount));
 		quotaCounterInput = String(settings.drinkQuotaCounter);
 	});
 
@@ -45,12 +50,37 @@
 		return [parsed[0], parsed[1], parsed[2]];
 	}
 
+	function parseQuickDiscountAmounts(): [number, number, number] | null {
+		if (discountAmountInputs.length !== 3) return null;
+		const parsed = discountAmountInputs.map((value) =>
+			Number.parseFloat(String(value).replace(',', '.'))
+		);
+		if (
+			parsed.some(
+				(amount) =>
+					!Number.isFinite(amount) ||
+					amount <= 0 ||
+					Math.round(amount * 100) / 100 !== amount
+			)
+		) {
+			return null;
+		}
+		return [parsed[0], parsed[1], parsed[2]];
+	}
+
 	async function handleSaveGeneral() {
 		generalError = '';
 		try {
 			const quickDiscountPercents = parseQuickDiscounts();
 			if (!quickDiscountPercents) {
-				generalError = 'Schnellrabatte müssen 3 Zahlen zwischen 0,1 und 100 sein';
+				generalError = 'Prozent-Schnellrabatte müssen 3 Zahlen zwischen 0,1 und 100 sein';
+				return;
+			}
+
+			const quickDiscountAmounts = parseQuickDiscountAmounts();
+			if (!quickDiscountAmounts) {
+				generalError =
+					'Euro-Schnellrabatte müssen 3 positive Beträge mit maximal 2 Nachkommastellen sein';
 				return;
 			}
 
@@ -61,6 +91,7 @@
 			}
 
 			settings.quickDiscountPercents = quickDiscountPercents;
+			settings.quickDiscountAmounts = quickDiscountAmounts;
 			settings.drinkQuotaCounter = parsedQuotaCounter;
 			await saveSettings(settings);
 			saved = true;
@@ -100,6 +131,7 @@
 			await importBackup(pendingImportFile);
 			settings = await getSettings();
 			discountInputs = settings.quickDiscountPercents.map((p) => String(p));
+			discountAmountInputs = settings.quickDiscountAmounts.map((amount) => String(amount));
 			quotaCounterInput = String(settings.drinkQuotaCounter);
 			backupStatus = 'Backup erfolgreich importiert';
 			setTimeout(() => (backupStatus = ''), 4000);
@@ -161,6 +193,10 @@
 			</div>
 
 			<div>
+				<label class="flex items-center gap-2 text-sm text-text-muted mb-2">
+					<input type="checkbox" bind:checked={settings.quickDiscountPercentsEnabled} />
+					<span>Prozent-Schnellrabatte aktiv</span>
+				</label>
 				<p class="block text-sm text-text-muted mb-1">Schnellrabatte (%)</p>
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
 					{#each [0, 1, 2] as idx}
@@ -172,6 +208,28 @@
 							class="w-full bg-surface-lighter rounded-lg px-3 py-2 text-text outline-none focus:ring-2 focus:ring-accent"
 							bind:value={discountInputs[idx]}
 							placeholder="%"
+						/>
+					{/each}
+				</div>
+				<p class="text-xs text-text-muted mt-1">Diese 3 Werte erscheinen als Rabatt-Buttons in der Kasse.</p>
+			</div>
+
+			<div>
+				<label class="flex items-center gap-2 text-sm text-text-muted mb-2">
+					<input type="checkbox" bind:checked={settings.quickDiscountAmountsEnabled} />
+					<span>Euro-Schnellrabatte aktiv</span>
+				</label>
+				<p class="block text-sm text-text-muted mb-1">Schnellrabatte (€)</p>
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+					{#each [0, 1, 2] as idx}
+						<input
+							type="number"
+							min="0.01"
+							step="0.01"
+							class="w-full bg-surface-lighter rounded-lg px-3 py-2 text-text outline-none focus:ring-2 focus:ring-accent"
+							bind:value={discountAmountInputs[idx]}
+							aria-label={`Euro-Schnellrabatt ${idx + 1}`}
+							placeholder="€"
 						/>
 					{/each}
 				</div>

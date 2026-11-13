@@ -103,6 +103,9 @@ beforeEach(() => {
 		currency: 'EUR',
 		shopName: 'TestShop',
 		quickDiscountPercents: [5, 10, 20],
+		quickDiscountPercentsEnabled: true,
+		quickDiscountAmounts: [1, 2, 3],
+		quickDiscountAmountsEnabled: true,
 		categories: [],
 		drinkQuotaCounter: 0,
 		checkoutLayout: 'compact'

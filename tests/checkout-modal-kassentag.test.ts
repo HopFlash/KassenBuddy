@@ -9,7 +9,13 @@ import { commitCheckout } from '$lib/db';
 import type { Product } from '$lib/types';
 
 vi.mock('$lib/db', () => ({
-	getSettings: vi.fn(async () => ({ drinkQuotaCounter: 100, quickDiscountPercents: [5, 10, 20] })),
+	getSettings: vi.fn(async () => ({
+		drinkQuotaCounter: 100,
+		quickDiscountPercents: [5, 10, 20],
+		quickDiscountPercentsEnabled: true,
+		quickDiscountAmounts: [1, 2, 3],
+		quickDiscountAmountsEnabled: true
+	})),
 	getActiveKassentag: vi.fn(async () => null),
 	commitCheckout: vi.fn()
 }));

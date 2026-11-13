@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { getSettings } from '$lib/db';
 	import { cart } from '$lib/stores/cart.svelte';
-	import type { Settings } from '$lib/types';
+	import { DEFAULT_SETTINGS, type Settings } from '$lib/types';
 	import { formatCurrency } from '$lib/utils/currency';
 
 	interface Props {
@@ -13,7 +13,14 @@
 	let { oncheckout, kassentagActive }: Props = $props();
 
 	let confirmClear = $state(false);
-	let quickDiscounts = $state<Settings['quickDiscountPercents']>([5, 10, 20]);
+	let quickDiscounts = $state<Settings['quickDiscountPercents']>([
+		...DEFAULT_SETTINGS.quickDiscountPercents
+	]);
+	let quickDiscountAmounts = $state<Settings['quickDiscountAmounts']>([
+		...DEFAULT_SETTINGS.quickDiscountAmounts
+	]);
+	let quickDiscountPercentsEnabled = $state(DEFAULT_SETTINGS.quickDiscountPercentsEnabled);
+	let quickDiscountAmountsEnabled = $state(DEFAULT_SETTINGS.quickDiscountAmountsEnabled);
 
 	let settingsError = $state('');
 
@@ -22,6 +29,9 @@
 		try {
 			const settings = await getSettings();
 			quickDiscounts = settings.quickDiscountPercents;
+			quickDiscountAmounts = settings.quickDiscountAmounts;
+			quickDiscountPercentsEnabled = settings.quickDiscountPercentsEnabled;
+			quickDiscountAmountsEnabled = settings.quickDiscountAmountsEnabled;
 		} catch (error) {
 			console.error('Schnellrabatte konnten nicht geladen werden', error);
 			settingsError = 'Schnellrabatte konnten nicht geladen werden – Standardwerte aktiv.';
@@ -51,6 +61,10 @@
 	function applyDiscount(percent: number) {
 		cart.addPercentageDiscount(percent);
 	}
+
+	function applyAmountDiscount(amount: number) {
+		cart.addFixedAmountDiscount(amount);
+	}
 </script>
 
 <div class="flex flex-col h-full">
@@ -62,37 +76,53 @@
 	</h2>
 
 	<!-- Cart items -->
-	<div class="rounded-lg p-2 bg-surface-lighter mb-2">
-		<p class="text-xs text-text-muted mb-2">Schnellrabatt</p>
-		{#if settingsError}
-			<div class="mb-2 flex items-center justify-between gap-2 rounded-lg bg-warning/10 px-2 py-1 text-xs text-warning">
-				<span role="alert">{settingsError}</span>
-				<button type="button" class="shrink-0 font-semibold underline" onclick={loadQuickDiscounts}>
-					Erneut versuchen
-				</button>
-			</div>
-		{/if}
-		<div class="flex flex-wrap gap-2">
-			{#each quickDiscounts as percent}
+	{#if quickDiscountPercentsEnabled || quickDiscountAmountsEnabled || cart.hasDiscount}
+		<div class="rounded-lg p-2 bg-surface-lighter mb-2">
+			<p class="text-xs text-text-muted mb-2">Schnellrabatt</p>
+			{#if settingsError}
+				<div class="mb-2 flex items-center justify-between gap-2 rounded-lg bg-warning/10 px-2 py-1 text-xs text-warning">
+					<span role="alert">{settingsError}</span>
+					<button type="button" class="shrink-0 font-semibold underline" onclick={loadQuickDiscounts}>
+						Erneut versuchen
+					</button>
+				</div>
+			{/if}
+			<div class="flex flex-wrap gap-2">
+				{#if quickDiscountPercentsEnabled}
+					{#each quickDiscounts as percent}
+						<button
+							type="button"
+							class="min-w-0 flex-1 rounded-lg min-h-10 py-2 text-xs font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
+							onclick={() => applyDiscount(percent)}
+							disabled={cart.subtotal <= 0}
+						>
+							{percent}%
+						</button>
+					{/each}
+				{/if}
+				{#if quickDiscountAmountsEnabled}
+					{#each quickDiscountAmounts as amount}
+						<button
+							type="button"
+							class="min-w-0 flex-1 rounded-lg min-h-10 py-2 text-xs font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
+							onclick={() => applyAmountDiscount(amount)}
+							disabled={cart.subtotal <= 0}
+						>
+							{formatCurrency(amount)}
+						</button>
+					{/each}
+				{/if}
 				<button
 					type="button"
-					class="min-w-0 flex-1 rounded-lg min-h-10 py-2 text-xs font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
-					onclick={() => applyDiscount(percent)}
-					disabled={cart.subtotal <= 0}
+					class="rounded-lg px-3 min-h-10 py-2 text-xs font-semibold bg-danger/15 text-danger hover:bg-danger/25 transition-colors disabled:opacity-40"
+					onclick={() => cart.removeDiscount()}
+					disabled={!cart.hasDiscount}
 				>
-					{percent}%
+					Entf.
 				</button>
-			{/each}
-			<button
-				type="button"
-				class="rounded-lg px-3 min-h-10 py-2 text-xs font-semibold bg-danger/15 text-danger hover:bg-danger/25 transition-colors disabled:opacity-40"
-				onclick={() => cart.removeDiscount()}
-				disabled={!cart.hasDiscount}
-			>
-				Entf.
-			</button>
+			</div>
 		</div>
-	</div>
+	{/if}
 
 	<div class="flex-1 overflow-y-auto space-y-2 mb-3">
 		{#each cart.items as item (item.product.id)}
