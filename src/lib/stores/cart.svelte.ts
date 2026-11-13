@@ -1,43 +1,75 @@
 import type { CartItem, Product, TransactionItem, Transaction } from '$lib/types';
 import { generateId } from '$lib/utils/id';
 import { getSettings, commitCheckout } from '$lib/db';
+import { formatCurrency } from '$lib/utils/currency';
 
 let items = $state<CartItem[]>([]);
 let subtotalValue = $state(0);
 let countValue = $state(0);
 let hasDiscountValue = $state(false);
-let discountPercentValue = $state(0);
+let discountValueValue = $state<DiscountValue | null>(null);
 
 const DISCOUNT_ID_PREFIX = 'discount:';
+
+type DiscountKind = 'percent' | 'amount';
+
+interface DiscountValue {
+	kind: DiscountKind;
+	value: number;
+}
 
 function isDiscountProduct(product: Product): boolean {
 	return product.id.startsWith(DISCOUNT_ID_PREFIX);
 }
 
-function getDiscountPercent(product: Product): number {
-	if (!isDiscountProduct(product)) return 0;
-	const parsed = Number.parseFloat(product.id.slice(DISCOUNT_ID_PREFIX.length));
-	if (!Number.isFinite(parsed) || parsed <= 0) return 0;
-	return parsed;
+function getDiscountValue(product: Product): DiscountValue | null {
+	if (!isDiscountProduct(product)) return null;
+
+	const suffix = product.id.slice(DISCOUNT_ID_PREFIX.length);
+	let kind: DiscountKind;
+	let rawValue: string;
+
+	if (suffix.startsWith('percent:')) {
+		kind = 'percent';
+		rawValue = suffix.slice('percent:'.length);
+	} else if (suffix.startsWith('amount:')) {
+		kind = 'amount';
+		rawValue = suffix.slice('amount:'.length);
+	} else if (!suffix.includes(':')) {
+		kind = 'percent';
+		rawValue = suffix;
+	} else {
+		return null;
+	}
+
+	const value = Number.parseFloat(rawValue);
+	if (!Number.isFinite(value) || value <= 0) return null;
+	return { kind, value };
 }
 
 function roundToCents(value: number): number {
 	return Math.round(value * 100) / 100;
 }
 
+function calculateDiscountTotal(discount: DiscountValue | null, subtotal: number): number {
+	if (!discount || subtotal <= 0) return 0;
+	if (discount.kind === 'percent') {
+		return -roundToCents((subtotal * Math.min(discount.value, 100)) / 100);
+	}
+	return -Math.min(roundToCents(discount.value), subtotal);
+}
+
 function recomputeMeta(): void {
 	let subtotal = 0;
 	let count = 0;
 	let hasDiscount = false;
-	let discountPercent = 0;
+	let discount: DiscountValue | null = null;
 
 	for (const item of items) {
 		count += item.quantity;
 		if (isDiscountProduct(item.product)) {
 			hasDiscount = true;
-			if (discountPercent <= 0) {
-				discountPercent = getDiscountPercent(item.product);
-			}
+			if (!discount) discount = getDiscountValue(item.product);
 			continue;
 		}
 		subtotal += item.product.price * item.quantity;
@@ -46,13 +78,13 @@ function recomputeMeta(): void {
 	subtotalValue = roundToCents(subtotal);
 	countValue = count;
 	hasDiscountValue = hasDiscount;
-	discountPercentValue = discountPercent;
+	discountValueValue = discount;
 }
 
-function createDiscountProduct(percent: number): Product {
+function createDiscountProduct(kind: DiscountKind, value: number): Product {
 	return {
-		id: `${DISCOUNT_ID_PREFIX}${percent}`,
-		name: `${percent}% Rabatt`,
+		id: `${DISCOUNT_ID_PREFIX}${kind}:${value}`,
+		name: kind === 'percent' ? `${value}% Rabatt` : `${formatCurrency(value)} Rabatt`,
 		price: 0,
 		purchasePrice: 0,
 		category: 'Rabatt',
@@ -74,10 +106,7 @@ export const cart = {
 	},
 
 	get discountTotal() {
-		if (!hasDiscountValue || discountPercentValue <= 0 || subtotalValue <= 0) return 0;
-
-		const maxPercent = Math.min(discountPercentValue, 100);
-		return -roundToCents((subtotalValue * maxPercent) / 100);
+		return calculateDiscountTotal(discountValueValue, subtotalValue);
 	},
 
 	get hasDiscount() {
@@ -113,17 +142,21 @@ export const cart = {
 		if (percent <= 0 || percent > 100) return false;
 		if (this.subtotal <= 0) return false;
 
-		const discountProduct = createDiscountProduct(percent);
-		this.add(discountProduct);
+		this.add(createDiscountProduct('percent', percent));
+		return true;
+	},
+
+	addFixedAmountDiscount(amount: number) {
+		if (!Number.isFinite(amount) || amount <= 0 || roundToCents(amount) !== amount) return false;
+		if (this.subtotal <= 0) return false;
+
+		this.add(createDiscountProduct('amount', amount));
 		return true;
 	},
 
 	getItemUnitPrice(item: CartItem) {
 		if (!isDiscountProduct(item.product)) return item.product.price;
-		const percent = getDiscountPercent(item.product);
-		if (percent <= 0 || this.subtotal <= 0) return 0;
-		const maxPercent = Math.min(percent, 100);
-		return -roundToCents((this.subtotal * maxPercent) / 100);
+		return calculateDiscountTotal(getDiscountValue(item.product), this.subtotal);
 	},
 
 	getItemTotal(item: CartItem) {
