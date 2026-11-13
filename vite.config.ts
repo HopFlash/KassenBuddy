@@ -1,14 +1,15 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	resolve: {
 		conditions: ['browser']
 	},
 	test: {
-		environment: 'node'
+		environment: 'node',
+		exclude: [...configDefaults.exclude, '**/.worktrees/**']
 	},
 	plugins: [
 		tailwindcss(),
