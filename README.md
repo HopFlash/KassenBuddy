@@ -2,6 +2,8 @@
 
 KassenBuddy ist ein **offline-fähiges Kassensystem** als Progressive Web App (PWA), gebaut mit SvelteKit und TailwindCSS. Es eignet sich ideal für den schnellen Verkauf an der Theke, auf Events oder überall dort, wo eine einfache, zuverlässige Kasse ohne Internetverbindung benötigt wird.
 
+Die wichtigsten Neuerungen und Verbesserungen findest du in den [Release Notes](./RELEASE_NOTES.md).
+
 ---
 
 ## ✨ Features
