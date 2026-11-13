@@ -87,34 +87,42 @@
 					</button>
 				</div>
 			{/if}
-			<div class="flex flex-wrap gap-2">
-				{#if quickDiscountPercentsEnabled}
-					{#each quickDiscounts as percent}
-						<button
-							type="button"
-							class="min-w-0 flex-1 rounded-lg min-h-10 py-2 text-xs font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
-							onclick={() => applyDiscount(percent)}
-							disabled={cart.subtotal <= 0}
-						>
-							{percent}%
-						</button>
-					{/each}
-				{/if}
-				{#if quickDiscountAmountsEnabled}
-					{#each quickDiscountAmounts as amount}
-						<button
-							type="button"
-							class="min-w-0 flex-1 rounded-lg min-h-10 py-2 text-xs font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
-							onclick={() => applyAmountDiscount(amount)}
-							disabled={cart.subtotal <= 0}
-						>
-							{formatCurrency(amount)}
-						</button>
-					{/each}
+			<div class="flex gap-2">
+				{#if quickDiscountPercentsEnabled || quickDiscountAmountsEnabled}
+					<div class="flex-1 min-w-0 space-y-2">
+						{#if quickDiscountPercentsEnabled}
+							<div class="grid grid-cols-3 gap-2" role="group" aria-label="Prozentrabatte">
+								{#each quickDiscounts as percent}
+									<button
+										type="button"
+										class="min-w-0 rounded-lg min-h-11 py-2 text-sm font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
+										onclick={() => applyDiscount(percent)}
+										disabled={cart.subtotal <= 0}
+									>
+										{percent}%
+									</button>
+								{/each}
+							</div>
+						{/if}
+						{#if quickDiscountAmountsEnabled}
+							<div class="grid grid-cols-3 gap-2" role="group" aria-label="Euro-Rabatte">
+								{#each quickDiscountAmounts as amount}
+									<button
+										type="button"
+										class="min-w-0 rounded-lg min-h-11 py-2 text-sm font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
+										onclick={() => applyAmountDiscount(amount)}
+										disabled={cart.subtotal <= 0}
+									>
+										{formatCurrency(amount)}
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
 				{/if}
 				<button
 					type="button"
-					class="rounded-lg px-3 min-h-10 py-2 text-xs font-semibold bg-danger/15 text-danger hover:bg-danger/25 transition-colors disabled:opacity-40"
+					class="shrink-0 rounded-lg px-3 min-h-11 py-2 text-sm font-semibold bg-danger/15 text-danger hover:bg-danger/25 transition-colors disabled:opacity-40"
 					onclick={() => cart.removeDiscount()}
 					disabled={!cart.hasDiscount}
 				>
