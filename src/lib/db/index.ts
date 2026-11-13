@@ -32,6 +32,21 @@ function normalizeQuickDiscountPercents(value: unknown): [number, number, number
 	return [...DEFAULT_SETTINGS.quickDiscountPercents] as [number, number, number];
 }
 
+function normalizeQuickDiscountAmounts(value: unknown): [number, number, number] {
+	if (Array.isArray(value) && value.length >= 3) {
+		const parsed = value.slice(0, 3).map(Number);
+		if (
+			parsed.every(
+				(amount) =>
+					Number.isFinite(amount) && amount > 0 && Math.round(amount * 100) / 100 === amount
+			)
+		) {
+			return [parsed[0], parsed[1], parsed[2]];
+		}
+	}
+	return [...DEFAULT_SETTINGS.quickDiscountAmounts] as [number, number, number];
+}
+
 function normalizeCategoryName(value: unknown): string {
 	return String(value ?? '').trim().replace(/\s+/g, ' ');
 }
@@ -67,6 +82,15 @@ function normalizeSettings(settings: Partial<Settings> | null | undefined): Sett
 		currency: String(merged.currency ?? DEFAULT_SETTINGS.currency),
 		shopName: String(merged.shopName ?? DEFAULT_SETTINGS.shopName),
 		quickDiscountPercents: normalizeQuickDiscountPercents(merged.quickDiscountPercents),
+		quickDiscountPercentsEnabled:
+			typeof merged.quickDiscountPercentsEnabled === 'boolean'
+				? merged.quickDiscountPercentsEnabled
+				: DEFAULT_SETTINGS.quickDiscountPercentsEnabled,
+		quickDiscountAmounts: normalizeQuickDiscountAmounts(merged.quickDiscountAmounts),
+		quickDiscountAmountsEnabled:
+			typeof merged.quickDiscountAmountsEnabled === 'boolean'
+				? merged.quickDiscountAmountsEnabled
+				: DEFAULT_SETTINGS.quickDiscountAmountsEnabled,
 		categories: normalizeCategories(merged.categories),
 		drinkQuotaCounter: Number.isFinite(Number(merged.drinkQuotaCounter))
 			? Math.trunc(Number(merged.drinkQuotaCounter))

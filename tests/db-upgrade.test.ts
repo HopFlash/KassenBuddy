@@ -3,7 +3,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { openDB } from 'idb';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { KasseDB } from '$lib/db';
-import type { Transaction } from '$lib/types';
+import { DEFAULT_SETTINGS, type Settings, type Transaction } from '$lib/types';
 
 const DB_NAME = 'kasse-db';
 
@@ -128,6 +128,13 @@ it('upgrades a v1 database to v2 preserving data and migrating legacy transactio
 
 	await expect(db.getAll('products')).resolves.toEqual([product]);
 	await expect(db.get('settings', 'main')).resolves.toEqual(settings);
+	const { getSettings } = await import('$lib/db');
+	await expect(getSettings()).resolves.toMatchObject({
+		quickDiscountPercents: [5, 15, 25],
+		quickDiscountAmounts: [1, 2, 3],
+		quickDiscountPercentsEnabled: true,
+		quickDiscountAmountsEnabled: true
+	});
 	await expect(db.count('transactions')).resolves.toBe(3);
 	await expect(db.get('transactions', legacyTransaction.id)).resolves.toEqual(
 		expect.objectContaining({
@@ -154,4 +161,21 @@ it('upgrades a v1 database to v2 preserving data and migrating legacy transactio
 			source: 'legacy'
 		})
 	]);
+});
+
+it('replaces invalid fixed discounts with the defaults', async () => {
+	const getDb = await loadFreshGetDb();
+	await getDb();
+	const { getSettings, saveSettings } = await import('$lib/db');
+	const invalidSettings: Settings = {
+		...DEFAULT_SETTINGS,
+		quickDiscountAmounts: [1, 0, 3],
+		quickDiscountAmountsEnabled: false
+	};
+	await saveSettings(invalidSettings);
+
+	await expect(getSettings()).resolves.toMatchObject({
+		quickDiscountAmounts: [1, 2, 3],
+		quickDiscountAmountsEnabled: false
+	});
 });

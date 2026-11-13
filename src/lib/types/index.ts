@@ -48,6 +48,9 @@ export interface Settings {
 	currency: string;
 	shopName: string;
 	quickDiscountPercents: [number, number, number];
+	quickDiscountPercentsEnabled: boolean;
+	quickDiscountAmounts: [number, number, number];
+	quickDiscountAmountsEnabled: boolean;
 	categories: string[];
 	drinkQuotaCounter: number;
 	checkoutLayout: 'classic' | 'compact';
@@ -58,6 +61,9 @@ export const DEFAULT_SETTINGS: Settings = {
 	currency: 'EUR',
 	shopName: 'KassenBuddy',
 	quickDiscountPercents: [5, 10, 20],
+	quickDiscountPercentsEnabled: true,
+	quickDiscountAmounts: [1, 2, 3],
+	quickDiscountAmountsEnabled: true,
 	categories: ['Bier', 'Wein', 'Spirituosen', 'Softdrinks', 'Wasser', 'Cocktails', 'Snacks', 'Sonstiges'],
 	drinkQuotaCounter: 0,
 	checkoutLayout: 'compact'
