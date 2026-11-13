@@ -1,4 +1,4 @@
-import { getAllProducts, getSettings, saveProduct, saveSettings, deleteProduct } from '$lib/db';
+import { getAllProducts, getSettings, replaceBackupData } from '$lib/db';
 import type { Product, Settings } from '$lib/types';
 
 interface BackupProduct extends Omit<Product, 'imageBlob'> {
@@ -24,6 +24,25 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
 	const res = await fetch(dataUrl);
 	return res.blob();
+}
+
+function isBackupProduct(value: unknown): value is BackupProduct {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+
+	const product = value as Record<string, unknown>;
+	return (
+		typeof product.id === 'string' &&
+		product.id.length > 0 &&
+		typeof product.name === 'string' &&
+		Number.isFinite(product.price) &&
+		(product.purchasePrice === undefined || Number.isFinite(product.purchasePrice)) &&
+		typeof product.category === 'string' &&
+		typeof product.active === 'boolean' &&
+		Number.isFinite(product.sortOrder) &&
+		Number.isFinite(product.createdAt) &&
+		(product.stock === null || Number.isFinite(product.stock)) &&
+		(product.imageDataUrl === null || typeof product.imageDataUrl === 'string')
+	);
 }
 
 export async function exportBackup(): Promise<void> {
@@ -64,14 +83,26 @@ export async function importBackup(file: File): Promise<void> {
 		throw new Error('Ungültige JSON-Datei');
 	}
 
-	if (!backup.version || !backup.settings || !Array.isArray(backup.products)) {
+	if (
+		!backup.version ||
+		typeof backup.settings !== 'object' ||
+		backup.settings === null ||
+		Array.isArray(backup.settings) ||
+		!Array.isArray(backup.products)
+	) {
 		throw new Error('Ungültiges Backup-Format');
 	}
 	if (backup.version !== 1) {
 		throw new Error(`Unbekannte Backup-Version: ${backup.version}`);
 	}
 
-	await saveSettings(backup.settings);
+	const productIds = new Set<string>();
+	for (const product of backup.products as unknown[]) {
+		if (!isBackupProduct(product) || productIds.has(product.id)) {
+			throw new Error('Ungültiges Produkt im Backup');
+		}
+		productIds.add(product.id);
+	}
 
 	const products: Product[] = await Promise.all(
 		backup.products.map(async ({ imageDataUrl, ...rest }) => ({
@@ -80,7 +111,5 @@ export async function importBackup(file: File): Promise<void> {
 		}))
 	);
 
-	const existing = await getAllProducts();
-	await Promise.all(existing.map((p) => deleteProduct(p.id)));
-	await Promise.all(products.map((p) => saveProduct(p)));
+	await replaceBackupData(backup.settings, products);
 }

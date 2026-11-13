@@ -43,6 +43,12 @@ Die App öffnet sich unter [http://localhost:5173](http://localhost:5173).
 pnpm check
 ```
 
+### Regressionstests
+
+```sh
+pnpm test
+```
+
 Für kontinuierliche Überprüfung:
 
 ```sh
