@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-11-13]
+
+### Features
+
+- Added three configurable fixed-euro quick discounts alongside percentage discounts, with independent enable switches.
+- Capped fixed-amount discounts at the cart subtotal.
+
+### Chores
+
+- Bumped the web and Android application versions to 1.2.0 (Android version code 2).
+
 ## [2026-10-08]
 
 ### Features

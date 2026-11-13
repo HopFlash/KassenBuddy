@@ -13,7 +13,7 @@ KassenBuddy ist ein **offline-fähiges Kassensystem** als Progressive Web App (P
   - 📱 **Kompakt** – optimiert für kleine Bildschirme und Querformat (z. B. Tablets)
   - 🖥️ **Klassisch** – größere Buttons für komfortables Bedienen
 - **Bar- und Kartenzahlung** mit automatischer Rückgeldberechnung
-- **Prozentuale Schnellrabatte** (3 konfigurierbare Buttons) als eigene Rabattposition im Warenkorb
+- **Schnellrabatte** – je 3 konfigurierbare Prozent- und Euro-Buttons, unabhängig aktivierbar; feste Rabatte sind auf die Zwischensumme begrenzt
 - **Getränke-Kontingent-Zähler** – zeigt verbleibendes Kontingent farblich an (grün/gelb/rot) und wird pro Verkauf automatisch reduziert
 - **Taschenrechner** direkt in der Kassen-Ansicht
 
@@ -36,7 +36,7 @@ KassenBuddy ist ein **offline-fähiges Kassensystem** als Progressive Web App (P
 - **Einstellungen**
   - Kassenname, Währung
   - Admin-PIN ändern (mind. 4 Stellen)
-  - 3 Schnellrabatt-Werte frei konfigurierbar
+  - Je 3 Prozent- und Euro-Schnellrabatt-Werte frei konfigurierbar und unabhängig aktivierbar
   - Getränke-Kontingent setzen
   - Checkout-Layout wählen (Kompakt / Klassisch)
   - **Datensicherung**: vollständiger Backup-Export (Produkte inkl. Bilder + Einstellungen als JSON) und -Import
