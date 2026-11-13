@@ -26,7 +26,7 @@ Add configurable fixed-euro quick discounts alongside the existing percentage qu
 - Update the Settings UI and validation for both value arrays and enable flags.
 - Update the cart calculation and POS buttons without changing stock handling or other checkout behavior.
 - Preserve compatibility for older persisted settings and existing percentage discount transactions.
-- Update the README and changelog, and bump the application version from `1.1.2` to `1.2.0`.
+- Update the README and changelog, bump `package.json` from `1.1.2` to `1.2.0`, and align Android with `versionName "1.2.0"` and `versionCode 2`.
 
 ## Verification
 
